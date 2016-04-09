@@ -14,7 +14,7 @@ function sfhint(sspind, logt, sfh):
   integer, intent(in) :: sspind
   real(SP), intent(in) :: logt
   type(SFHPARAMS), intent(in) :: sfh
-  real(SP), intent(out), dimension(ntfull) :: sfhint
+  real(SP), intent(out) :: sfhint
   
   if (interpolation_type.eq.0) then
      sfhint = sfhint_log(sspind, logt, sfh)
@@ -50,7 +50,7 @@ function sfhint_log(sspind, logt, sfh)
   !  sfhint:
   !    The exact indefinite integral, evaluated at `logt`
   
-  use sps_vars, only: ntfull, time_full, pset
+  use sps_vars, only: time_full, pset
   use sps_utils, only: expi
   implicit none
   integer, intent(in) :: sspind
@@ -59,9 +59,9 @@ function sfhint_log(sspind, logt, sfh)
   
   real(SP) :: loge
   real(SP) :: logage, tprime ! intermediate time variables
-  real(SP) :: a, b, c !dummy varaibles used to break up long expressions
+  real(SP) :: a, b, c !dummy variables used to break up long expressions
   
-  real(SP), intent(out), dimension(ntfull) :: sfhint_log
+  real(SP), intent(out) :: sfhint_log
 
   logage = time_full(sspind)
   
@@ -131,7 +131,7 @@ function sfhint_lin(sspind, t, sfh)
   !  sfhint:
   !    The indefinite integral, evaluated at `logt`
 
-  use sps_vars, only: ntfull, time_full
+  use sps_vars, only: time_full
   implicit none
   integer, intent(in) :: sspind 
   real(SP), intent(in) :: t
@@ -140,7 +140,7 @@ function sfhint_lin(sspind, t, sfh)
   real(SP) :: age, tprime
   real(SP) :: loge, a
 
-  real(SP), intent(out), dimension(ntfull) :: sfhint_lin
+  real(SP), intent(out) :: sfhint_lin
 
   ! Convert from Gyr to yrs.
   ! This is stupid and time consuming to have in the inner loop. `sfh` should
