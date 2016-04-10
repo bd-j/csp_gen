@@ -14,10 +14,10 @@ function sfhlimit(tlim, sfh)
   
   real(SP), intent(in) :: tlim
   type(SFHPARAMS), intent(in) :: sfh
-  
-  real(SP) :: tq, t0, tlo, thi
 
   real(SP), intent(out) :: sfhlimit
+  
+  real(SP) :: tq, t0, tlo, thi
   
   ! convert sf_trunc to to t_lookback
   if ((sfh%sf_trunc.le.0).or.(sfh%sf_trunc.gt.sfh%tage)) then
@@ -30,7 +30,7 @@ function sfhlimit(tlim, sfh)
   ! zero crossing, whichever is smaller but still greater than sf_trunc.
   ! For everything else we integrate from 0 to tage or sf_trunc, whichever is
   ! smaller but non-zero.
-  ! Of course, we are converting everything to lookback times as well!
+  ! Of course, we are converting everything to lookback times as well!!!
   if (sfh%simha_limits.eq.1) then
      ! get zero crossing time (in lookback time), avoiding divison by zero
      if (abs(sfh%sf_slope).gt.tiny_number) then
@@ -38,7 +38,7 @@ function sfhlimit(tlim, sfh)
      else
         t0 = 0
      endif
-     ! if zero crossing time outside the linear regime, set it to zero
+     ! If the zero crossing time is outside the linear regime, set it to zero.
      if ((t0.gt.tq).or.(t0.le.0)) then
         t0 = 0
      endif
@@ -63,9 +63,10 @@ end function sfhlimit
 function clip(x, lo, hi):
   ! stupid function to clip x to the range (lo, hi)
   !
+  implicit none
+  
   real(SP), intent(in) :: x, lo, hi
   real(SP), intent(out) :: clip
-  implicit none
   
   clip  = MIN(MAX(x, lo), hi)
   

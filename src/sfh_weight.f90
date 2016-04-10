@@ -7,14 +7,14 @@ function sfh_weight(sfh_type, imin, imax, simha_linear)
   integer, intent(in) :: sfh_type
   integer, intent(in) :: imin, imax
   integer, INTENT(in), OPTIONAL :: simha_linear
+  
+  real(SP), intent(out), dimension(ntfull) ::sfh_weight=0.
 
   integer :: i
   real(SP) dimension(2) :: tlim
   real(SP) :: dt 
   real(SP), dimension(ntfull) :: left=0., right=0.
   type(SFHPARAMS) :: sfh
-  
-  real(SP), intent(out), dimension(ntfull) ::sfh_weight=0.
 
   sfh%tage = pset%tage * 1e9
   sfh%tau = pset%tau * 1e9

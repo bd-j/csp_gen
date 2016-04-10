@@ -11,9 +11,11 @@ function sfhint(sspind, logt, sfh):
   
   use sps_vars, only: interpolation_type
   implicit none
+  
   integer, intent(in) :: sspind
   real(SP), intent(in) :: logt
   type(SFHPARAMS), intent(in) :: sfh
+
   real(SP), intent(out) :: sfhint
   
   if (interpolation_type.eq.0) then
@@ -50,18 +52,19 @@ function sfhint_log(sspind, logt, sfh)
   !  sfhint:
   !    The exact indefinite integral, evaluated at `logt`
   
-  use sps_vars, only: time_full, pset
+  use sps_vars, only: time_full
   use sps_utils, only: expi
   implicit none
+  
   integer, intent(in) :: sspind
   real(SP), intent(in) :: logt
   type(SFHPARAMS), intent(in) :: sfh
-  
+
+  real(SP), intent(out) :: sfhint_log
+
   real(SP) :: loge
   real(SP) :: logage, tprime ! intermediate time variables
   real(SP) :: a, b, c !dummy variables used to break up long expressions
-  
-  real(SP), intent(out) :: sfhint_log
 
   logage = time_full(sspind)
   
@@ -133,23 +136,16 @@ function sfhint_lin(sspind, t, sfh)
 
   use sps_vars, only: time_full
   implicit none
+  
   integer, intent(in) :: sspind 
   real(SP), intent(in) :: t
   type(SFHPARAMS), intent(in) :: sfh
+
+  real(SP), intent(out) :: sfhint_lin
   
   real(SP) :: age, tprime
   real(SP) :: loge, a
 
-  real(SP), intent(out) :: sfhint_lin
-
-  ! Convert from Gyr to yrs.
-  ! This is stupid and time consuming to have in the inner loop. `sfh` should
-  ! be a structure that contains the SFH variables (including type) already in
-  ! the proper units
-  ! sfh%tage = pset%tage * 1e9
-  ! sfh%tau = pset%tau * 1e9
-  ! sfh%sf_trunc = pset%sf_trunc * 1e9
-  ! sfh%sf_slope = pset%sf_slope / 1e9
   loge = log10(exp(1.0))
 
   !convert from log(age_ssp) to age_ssp

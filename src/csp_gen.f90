@@ -59,8 +59,7 @@ subroutine csp_gen(write_compsp,nzin,outfile,mass_ssp,&
      ! linear portion.  Need to set simha_linear flag to get corect limits
      weights2 = sfh_weight(5, 1, ntfull, 1)
      ! normalize and sum
-     norm = 
-     total_weights = weights1 / sum(weights1) + norm * (weights2 / sum(weights2))
+     total_weights = weights1 / sum(weights1) + simha_norm(pset) * (weights2 / sum(weights2))
   endif
 
   ! Add constant and burst weights
@@ -78,6 +77,43 @@ subroutine csp_gen(write_compsp,nzin,outfile,mass_ssp,&
   ! Tabular
   if (pset%sfh.EQ.2.OR.pset%sfh.EQ.3) then
      call setup_tabular()
+     do i=1,ntabsfh-1
+        imin =
+        imax =
+        tmin =
+        tmax = 
+        w = sfh_weight(5, 
+        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) / (2 * (tmax - tmin))
+        total_weight = total_weight + w / sum(w) * mass
+     enddo
+     
   endif
 
 end subroutine csp_gen
+
+
+function simha_norm(pset)
+  ! mass in the delayed tau portion
+  if ((pset%sf_trunc.le.0).or.(pset%sf_trunc.gt.tage)) then
+     Tmax = pset%tage
+  else
+     Tmax = pset%sf_trunc
+  endif
+  mass_tau = pset%tau * gammainc(2, Tmax/pset%tau)
+
+  ! sfr at sf_trunc
+  sfr_q = (Tmax/pset%tau) * exp(-Tmax/pset%tau)
+  
+  ! Mass in the linear portion.
+  ! This is integral of (1 - m * (T - Tmax)) from Tmax to Tzero
+  Tz = Tmax + 1/np.float64(sf_slope) ! need to deal with divide by zero
+  if ((Tz.lt.Tmax).or.(Tz.gt.pset%tage).or.(pset%sf_slope.eq.0)) then
+     Tz = pset%tage
+  endif
+  m = pset%sf_slope
+  mass_linear = (Tz - Tmax) - m/2.*(Tz**2 + Tmax**2) + m*Tz*Tmax
+  
+  ! now compute normalization relative to 1 Msun in the delayed-tau portion
+  simha_norm = mass_linear * sfr_q / mass_tau
+  
+end function simha_norm
