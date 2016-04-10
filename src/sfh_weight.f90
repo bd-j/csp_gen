@@ -33,8 +33,8 @@ function sfh_weight(sfh_type, imin, imax, simha_linear)
         ! There is a younger (`left`) bin, and we calculate its contribution to
         ! the weight.
         ! First calculate actual limits for the younger bin.  
-        tlim(1) = sfhlimits(time_full(i-1), sfh)
-        tlim(2) = sfhlimits(time_full(i), sfh)
+        tlim(1) = sfhlimit(time_full(i-1), sfh)
+        tlim(2) = sfhlimit(time_full(i), sfh)
         ! The elements of `tlim` will be equal if there is no valid SFR in the
         ! younger bin; only proceed if there is a non-zero sfr in the younger bin
         if (tlim(1).ne.tlim(2)) then
@@ -45,10 +45,10 @@ function sfh_weight(sfh_type, imin, imax, simha_linear)
      endif
      if (i.lt.ntfull) then
         ! There is an older (`right`) bin, we calculate its contribution to the weight
-        tlim(1) = sfhlimits(time_full(i), sfh)
-        tlim(2) = sfhlimits(time_full(i+1), sfh)
+        tlim(1) = sfhlimit(time_full(i), sfh)
+        tlim(2) = sfhlimit(time_full(i+1), sfh)
         ! The elements of `tlim` will be equal if there is no valid SFR in the
-        ! younger bin; only proceed if there is a non-zero sfr in the younger bin
+        ! younger bin; only proceed if there is a non-zero sfr in the older bin
         if (tlim(1).ne.tlim(2)) then
            dt = time_full(i+1) - time_full(i)
            right(i) = dt * (sfhint(i+1, tlim(1), sfh) - sfhint(i+1, tlim(2), sfh))

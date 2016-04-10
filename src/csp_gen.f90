@@ -89,6 +89,10 @@ subroutine csp_gen(write_compsp,nzin,outfile,mass_ssp,&
      
   endif
 
+  ! Now weight each SSP by `total_weight` and sum
+
+  ! Add IGM absorption
+  
 end subroutine csp_gen
 
 
