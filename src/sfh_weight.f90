@@ -1,12 +1,11 @@
-function sfh_weight(sfh_type, imin, imax, simha_linear)
+function sfh_weight(sfh, imin, imax)
 
   use sps_vars, only: ntfull, time_full, pset
   use sps_utils, only: sfhint, sfhlimits
   implicit none
   
-  integer, intent(in) :: sfh_type
+  type(SFHPARAMS), intent(in) :: sfh
   integer, intent(in) :: imin, imax
-  integer, INTENT(in), OPTIONAL :: simha_linear
   
   real(SP), intent(out), dimension(ntfull) ::sfh_weight=0.
 
@@ -14,18 +13,6 @@ function sfh_weight(sfh_type, imin, imax, simha_linear)
   real(SP) dimension(2) :: tlim
   real(SP) :: dt 
   real(SP), dimension(ntfull) :: left=0., right=0.
-  type(SFHPARAMS) :: sfh
-
-  sfh%tage = pset%tage * 1e9
-  sfh%tau = pset%tau * 1e9
-  sfh%sf_trunc = pset%sf_trunc * 1e9
-  sfh%sf_slope = pset%sf_slope / 1e9
-  sfh%type = sfh_type
-  if present(simha_linear) then
-     sfh%simha_limits = 1
-  else
-     sfh%simha_limits = 0
-  endif
   
   ! Loop over each SSP and calculate its weight in the given sfh
   do i=imin,imax

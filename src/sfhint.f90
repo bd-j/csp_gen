@@ -21,7 +21,7 @@ function sfhint(sspind, logt, sfh):
   if (interpolation_type.eq.0) then
      sfhint = sfhint_log(sspind, logt, sfh)
   else
-     sfhint = sfhint_lin(sspind, logt, sfh)
+     sfhint = sfhint_lin(sspind, 10**logt, sfh)
   endif
   
 end function sfhint

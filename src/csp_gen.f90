@@ -46,28 +46,38 @@ subroutine csp_gen(write_compsp,nzin,outfile,mass_ssp,&
      
   ! ----- Get SFH weights -----
 
+  ! Build a structure containing useful units and switches
+  call convert_sfhparams(pset, sfhpars)
+  
   ! Tau and delayed-tau
   if ((pset%sfh.EQ.1).OR.(pset%sfh.EQ.4)) THEN
-     total_weights = sfh_weight(pset%sfh, 1, ntfull)
+     sfhpars%type = pset%sfh
+     total_weights = sfh_weight(sfhpars, 1, ntfull)
      total_weights = total_weights / sum(total_weights)
   endif
 
   ! Simha
   if (pset%sfh.eq.5) then
-     ! tau model portion
-     weights1 = sfh_weight(4, 1, ntfull)
-     ! linear portion.  Need to set simha_linear flag to get corect limits
-     weights2 = sfh_weight(5, 1, ntfull, 1)
-     ! normalize and sum
-     total_weights = weights1 / sum(weights1) + simha_norm(pset) * (weights2 / sum(weights2))
+     ! delayed-tau model portion
+     sfhpars%type = 4
+     w1 = sfh_weight(sfhpars, 1, ntfull)
+     ! linear portion.  Need to set use_simha_limits flag to get corect limits
+     sfhpars%type = 5
+     sfhpars%use_simha_limits = 1
+     w2 = sfh_weight(sfhpars, 1, ntfull)
+     sfhpars%use_simha_limits = 0
+     ! normalize and sum.  need to be careful of divide by zero here, if all
+     ! linear or all delay-tau
+     total_weights = w1 / sum(w1) + simha_norm(pset) * (w2 / sum(w2))
   endif
 
   ! Add constant and burst weights
   if ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number)) then
      ! Constant
-     weights1 = sfh_weight(0, 1, ntfull)
+     sfhpars%type = 0
+     w1 = sfh_weight(sfhpars, 1, ntfull)
      ! burst.  These weights come pre-normalized to 1 Msun
-     weights2 = burst_weight(pset%tburst)
+     w2 = burst_weight(pset%tburst)
      ! sum with proper relative normalization
      total_weights = (1 - pset%const - pset%fburst) * total_weights + &
           pset%const * (weights1 / sum(weights1)) + &
@@ -77,13 +87,21 @@ subroutine csp_gen(write_compsp,nzin,outfile,mass_ssp,&
   ! Tabular
   if (pset%sfh.EQ.2.OR.pset%sfh.EQ.3) then
      call setup_tabular()
+     ! linearly interpolate in the bins
+     sfhpars%type = 5
+     ! loop over each bin
      do i=1,ntabsfh-1
-        imin =
-        imax =
-        tmin =
-        tmax = 
-        w = sfh_weight(5, 
-        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) / (2 * (tmax - tmin))
+        ! mass formed in this bin assuming linear
+        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) / (2 * (sfhtab(i+1,1) - sfhtab(i, 1)))
+        ! min and max ssps to consider
+        imin = locate(time_full, log10(sfhtab(i, 1))
+        imax = locate(time_full, log10(sfhtab(i+1, 1))
+        ! set integration limits
+        sfhpars%tq = sfhtab(i, 1)
+        sfhpars%tage = sfhtab(i+1, 1)
+        ! get the weights for this bin in the tabulated sfh and add to the
+        ! total weight, after normalizing
+        w = sfh_weight(sfh_pars, imin, imax)
         total_weight = total_weight + w / sum(w) * mass
      enddo
      
