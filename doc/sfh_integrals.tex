@@ -254,4 +254,14 @@ T_{burst} & = & \tage - t_b
 \end{eqnarray}
 
 
+\section{Old FSPS Integrals}
+
+Before FSPS was doing the something like following integral (ignoring \texttt{dust\_tesc}, \texttt{sf\_start} and \texttt{sf\_trunc})
+\begin{eqnarray}
+f & = & f_{i_{max}+1} \int _{t_{i_{max}}}^{tage} dt\, SFR(t) + \Sum_{i=1}^{i_{max}} \frac{f_i + f_{i+1}}{2}\int _{t_{i}-t_1}^{t_{i+1}-t_1} dt\, SFR(t) \\
+%i_{max} & = &
+\end{eqnarray}
+This is basically trapz, a numerical approximation to the fully analytic integrals we are doing.  
+It works great as long as the SFH in the bin is approximately linear.
+
 \end{document}
