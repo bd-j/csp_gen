@@ -47,7 +47,7 @@ end function sfhlimit
 
 function clip(x, lo, hi):
   ! stupid function to clip x to the range (lo, hi)
-  !
+  ! works with reals
   implicit none
   
   real(SP), intent(in) :: x, lo, hi

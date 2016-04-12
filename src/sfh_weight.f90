@@ -1,5 +1,7 @@
 function sfh_weight(sfh, imin, imax)
-
+  ! Function to calculate the weights
+  !
+  !
   use sps_vars, only: ntfull, time_full, pset
   use sps_utils, only: sfhint, sfhlimits
   implicit none
@@ -45,4 +47,6 @@ function sfh_weight(sfh, imin, imax)
   
   sfh_weight = right + left
 
+  ! need to add weights from the zero bin
+  
 end function sfh_weight
