@@ -8,7 +8,7 @@ function sfhlimit(tlim, sfh)
   ! ----------
   !
   ! tlim:
-  !    The proposed limit of the integration, in log(lookback_time)
+  !    The proposed limit of the integration, in log(lookback_time(yrs))
   !
   ! sfh:
   !    An sfhparams structure containing the relevant special lookback times
@@ -27,7 +27,8 @@ function sfhlimit(tlim, sfh)
   ! zero crossing, whichever is smaller but still greater than sf_trunc.
   ! For everything else we integrate from 0 to tage or sf_trunc, whichever is
   ! smaller but non-zero.
-  ! Of course, we are doing this using the lookback time versions!!!
+  ! Of course, we are doing this using the lookback time versions of sf_trunc,
+  ! the zero crossing time, and 0!!!
   if (sfh%use_simha_limits.eq.1) then
      tlo = sfh%t0
      thi = sfh%tq

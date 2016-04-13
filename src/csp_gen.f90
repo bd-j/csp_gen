@@ -36,8 +36,8 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   if ((pset%sfh.EQ.1).OR.(pset%sfh.EQ.4)) THEN
      sfhpars%type = pset%sfh
      ! only calculate SFH weights for SSPs up to tage (plus the next one)
-     imax = clip(locate(time_full, log10(sfhpars%tage)) + 1, 1, ntfull)
-     total_weights = sfh_weight(sfhpars, 1, imax)
+     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 1, 1), ntfull)
+     total_weights = sfh_weight(sfhpars, 0, imax)
      mass = sum(total_weights)
      if (mass.lt.tiny_number) then
         total_weights = total_weights / mass
@@ -47,15 +47,15 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   ! Simha
   if (pset%sfh.eq.5) then
      ! only calculate SFH weights for SSPs up to tage (plus the next one)
-     imax = clip(locate(time_full, log10(sfhpars%tage)) + 1, 1, ntfull)
+     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 1, 1), ntfull)
      ! delayed-tau model portion
      sfhpars%type = 4
-     w1 = sfh_weight(sfhpars, 1, imax)
+     w1 = sfh_weight(sfhpars, 0, imax)
      m1 = sum(w1)
      ! linear portion.  Need to set use_simha_limits flag to get corect limits
      sfhpars%type = 5
      sfhpars%use_simha_limits = 1
-     w2 = sfh_weight(sfhpars, 1, imax)
+     w2 = sfh_weight(sfhpars, 0, imax)
      sfhpars%use_simha_limits = 0
      m2 = sum(w2)
      ! normalize and sum.  need to be careful of divide by zero here, if all
@@ -70,7 +70,7 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
        ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number))) then
      ! Constant
      sfhpars%type = 0
-     w1 = sfh_weight(sfhpars, 1, ntfull)
+     w1 = sfh_weight(sfhpars, 0, ntfull)
      m1 = sum(w1)
      ! burst.  These weights come pre-normalized to 1 Msun
      w2 = burst_weight(pset%tburst)
@@ -92,18 +92,20 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
         ! mass formed in this bin assuming linear
         mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
         ! min and max ssps to consider
-        imin = clip(locate(time_full, log10(sfhtab(i, 1)) - 1, 1, ntfull)
-        imax = clip(locate(time_full, log10(sfhtab(i+1, 1)) + 1, 1, ntfull)
+        imin = min(max(locate(time_full, log10(sfhtab(i, 1))) - 1, 0), ntfull)
+        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 1, 0), ntfull)
         ! set integration limits
         sfhpars%tq = sfhtab(i, 1)
         sfhpars%tage = sfhtab(i+1, 1)
         sfhpars%sf_slope = (sfhtab(i,2) - sfhtab(i+1, 2)) / (sfhtab(i+1,1) - sfhtab(i, 1))
+        
         ! get the weights for this bin in the tabulated sfh and add to the
         ! total weight, after normalizing
         w1 = sfh_weight(sfh_pars, imin, imax)
         m1 = sum(w1)
         if (m1.lt.tiny_number) m1 = 1.0
         total_weight = total_weight + w1 * (mass / m1)
+        
      enddo
   endif
 
