@@ -8,7 +8,28 @@
 
 function intsfwght(sspind, logt, sfh):
   ! Wrapper on the sfhint_* routines to choose the correct interpolation type
-  ! and calculate the definite integral between the given limits
+  ! and calculate the definite integral of the weighted SFR between the given
+  ! limits.
+  !
+  ! Inputs
+  ! -------
+  !
+  ! sspind:
+  !    The index of the SSP forming the bracket with the SSP you are getting a
+  !    weight for.
+  !
+  ! logt:
+  !    the limits of the integral, 2-element array (lo, hi) of
+  !    log(lookback time) (in yrs).
+  !
+  ! sfh:
+  !    Structure containing the SFH parameters in units of years, including an
+  !    integer `type` specifiying the form of SFR(t).
+  !
+  ! Outputs
+  !--------
+  !  intsfwght:
+  !    The exact definite integral between the limits specified in `logt`
   
   use sps_vars, only: interpolation_type
   implicit none
@@ -19,21 +40,16 @@ function intsfwght(sspind, logt, sfh):
 
   real(SP), intent(out) :: intsfwght
 
-  !real(SP) :: dt
-
   if (interpolation_type.eq.0) then
-     !dt = logt(2) - logt(1)
-     intsfwght = (sfhint_log(sspind, logt(2), sfh) - sfhint_log(sspind, logt(1), sfh))
+     intsfwght = (sfhwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))
   else
-     !dt = 10**logt(2) - 10**logt(1)
-     intsfwght = (sfhint_lin(sspind, 10**logt(2), sfh) - sfhint_lin(sspind, 10**logt(1), sfh))
+     intsfwght = (sfhwght_lin(sspind, 10**logt(2), sfh) - sfhwght_lin(sspind, 10**logt(1), sfh))
   endif
-  !intsfwght = intsfwght / dt
   
-end function sfhint
+end function intsfwght
    
 
-function sfhint_log(sspind, logt, sfh)
+function sfwght_log(sspind, logt, sfh)
   ! Evaluates the indefinite integral of the interpolation weight in log time,
   ! weighted by the SFH, and evaluated at `logt`.  In detail, this function
   ! returns:
@@ -48,7 +64,7 @@ function sfhint_log(sspind, logt, sfh)
   !    weight for.
   !
   ! logt:
-  !    Where the indefinite integral is evaluated.
+  !    Where the indefinite integral is evaluated, log(t_lookback) (in yrs).
   !
   ! sfh:
   !    Structure containing the SFH parameters in units of years, including an
@@ -56,7 +72,7 @@ function sfhint_log(sspind, logt, sfh)
   !
   ! Outputs
   !--------
-  !  sfhint:
+  !  sfwght_log:
   !    The exact indefinite integral, evaluated at `logt`
   
   use sps_vars, only: time_full, tiny_logt
@@ -67,7 +83,7 @@ function sfhint_log(sspind, logt, sfh)
   real(SP), intent(in) :: logt
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: sfhint_log
+  real(SP), intent(out) :: sfwght_log
 
   real(SP) :: loge
   real(SP) :: logage, tprime ! intermediate time variables
@@ -83,12 +99,12 @@ function sfhint_log(sspind, logt, sfh)
      
   if (sfh%type.eq.0) then
      ! SFR = Constant ~ 1
-     sfhint_log = 10**logt * (logage - logt + loge)
+     sfwght_log = 10**logt * (logage - logt + loge)
      
   else if (sfh%type.eq.1) then
      ! SFR = exponential ~ exp(-T/tau)
      tprime = 10**logt / sfh%tau
-     sfhint_log = (logage - logt) * exp(tprime) + loge) * expi(tprime)
+     sfwght_log = (logage - logt) * exp(tprime) + loge) * expi(tprime)
      
   else if (sfh%type.eq.4) then
      ! SFR = delayed exponential ~ T/tau exp(-T/tau)
@@ -97,7 +113,7 @@ function sfhint_log(sspind, logt, sfh)
           sfh%tage * logage + &
           sfh%tau * (logage - loge)
      b = sfh%tau * (logt * exp(tprime) - loge * expi(tprime))
-     sfhint_log = a * exp(tprime) - b * (tage / sfh%tau + 1)
+     sfwght_log = a * exp(tprime) - b * (tage / sfh%tau + 1)
      
   else if (sfh%type.eq.5) then
      !SFR = linear ~ (1 - sf_slope * (T - T_trunc)), T > T_trunc
@@ -105,14 +121,14 @@ function sfhint_log(sspind, logt, sfh)
      a = 1 - sfh%sf_slope * tprime
      b = a * 10**logt * (logage - logt + loge)
      c = sfh%sf_slope * (10**logt)**2 / 2 * (logage - logt + loge / 2)
-     sfhint_log = b + c
+     sfwght_log = b + c
      
   endif
   
-end function sfhint_log
+end function sfwght_log
 
 
-function sfhint_lin(sspind, t, sfh)
+function sfwght_lin(sspind, t, sfh)
   ! Evaluates the indefinite integral of the interpolation weight in linear
   ! time, weighted by the SFH, and evaluated at `logt`.  In detail, this
   ! function returns:
@@ -127,7 +143,7 @@ function sfhint_lin(sspind, t, sfh)
   !    weight for.
   !
   ! t:
-  !    Where the indefinite integral is evaluated.
+  !    Where the indefinite integral is evaluated, linear years (lookback time)
   !
   ! sfh:
   !    Structure containing the SFH parameters in units of years, including an
@@ -135,7 +151,7 @@ function sfhint_lin(sspind, t, sfh)
   !
   ! Outputs
   !--------
-  !  sfhint:
+  !  sfwght_lin:
   !    The indefinite integral, evaluated at `t`
 
   use sps_vars, only: time_full, tiny_logt
@@ -145,7 +161,7 @@ function sfhint_lin(sspind, t, sfh)
   real(SP), intent(in) :: t
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: sfhint_lin
+  real(SP), intent(out) :: sfwght_lin
   
   real(SP) :: age, tprime
   real(SP) :: loge, a
@@ -162,24 +178,24 @@ function sfhint_lin(sspind, t, sfh)
 
   if (sfh%type.eq.0) then
      ! SFR = Constant ~ 1
-     sfhint_lin = age * t - t**2 / 2
+     sfwght_lin = age * t - t**2 / 2
 
   else if (sfh%type.eq.1) then
      ! SFR = exponential ~ 1/tau * exp(-T/tau)
      tprime = t / sfh%tau
-     sfhint_lin = (age - t + sfh%tau) * exp(tprime)
+     sfwght_lin = (age - t + sfh%tau) * exp(tprime)
 
   else if (sfh%type.eq.4) then
      ! SFR = delayed exponential ~ T/tau**2 * exp(-T/tau)
      tprime = t / sfh%tau
      a = sfh%tage * age - (sfh%tage + age) * (t - sfh%tau) + &
           t**2 - 2*t*sfh%tau + 2*sfh%tau**2
-     sfhint_lin = a * exp(tprime)
+     sfwght_lin = a * exp(tprime)
      
   else if (sfh%type.eq.5) then
      ! SFR = linear ~ (1 - sf_slope * (T - T_trunc)), T > T_trunc
      tprime = max(0, sfh%tage - sfh%sf_trunc) !t_q
      a = 1 - sfh%sf_slope * tprime
-     sfhint_lin = a * age * t + (sfh%sf_slope*age - a) * t**2 / 2 - sfh%sf_slope * t**3 / 3
+     sfwght_lin = a * age * t + (sfh%sf_slope*age - a) * t**2 / 2 - sfh%sf_slope * t**3 / 3
 
-end function sfhint_lin
+end function sfwght_lin

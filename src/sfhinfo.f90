@@ -1,47 +1,61 @@
 subroutine sfhinfo(pset, age, mfrac, sfr)
 
-  mfrac = sfint(pset, age) / sfint(pset, pset%tage)
+  mfrac = sfint(pset, age) / sfint(pset)
   sfr = get_sfr(pset)
   
 end subroutine sfhinfo
 
 
-function sfint(pset, age)
-  ! ugh.
-  !
+function sfint(pset, tage)
+  ! ugh.  This is a disaster
+  ! Get the SFR integrated from T=0 to T=age
   implicit none
   type(PARAMS), intent(in) :: pset
-
-  real(SP) :: Tmax, Tz
+  real(SP), intent(in), OPTIONAL :: tage
+  
+  real(SP) :: age, Tmax, Tz
   real(SP) :: mass_tau, mass_linear
   real(SP) :: power, m, sfr_q
   
   if (pset%sfh.eq.1) power = 1.
   if (pset%sfh.eq.4).or.(pset%sfh.eq.5) power = 2.
-
-  ! mass in the tau portion
+  
+  ! Check for specified age
+  if present(tage) then
+     age = tage
+  else
+     age = pset%tage
+  endif
+  
+  ! mass in the tau portion.  this is the integral of (T/tau)^p e^(-T/tau) from 0 to Tmax
   if ((pset%sf_trunc.le.0).or.(pset%sf_trunc.gt.age)) then
      Tmax = age
   else
      Tmax = pset%sf_trunc
   endif
-  mass_tau = pset%tau * gammainc(power, Tmax/pset%tau)* (1 - pset%const)
-
+  mass_tau = pset%tau * gammainc(power, Tmax/pset%tau)
+    
+  ! Mass in the linear portion. This is integral of (1 - m * (T - Tmax)) from
+  ! Tmax to Tzero
   ! sfr at sf_trunc
-  sfr_q = (Tmax/pset%tau) * exp(-Tmax/pset%tau) * (1 - pset%const) + pset%const
-  
-  ! Mass in the linear portion.
-  ! This is integral of (1 - m * (T - Tmax)) from Tmax to Tzero
-  ! we then multiply it by sfr_q
-  if (m.gt.0) then
-     Tz = Tmax + 1.0/m
+  sfr_q = (Tmax/pset%tau) * exp(-Tmax/pset%tau)
+  if (pset%sfh.eq.5) then
+     if (m.gt.0) then
+        Tz = Tmax + 1.0/m
+     else
+        Tz = age
+     endif
+     if ((Tz.lt.Tmax).or.(Tz.gt.age)) then
+        Tz = age
+     endif
+     mass_linear = sfr_q * ((Tz - Tmax) - m/2.*(Tz**2 + Tmax**2) + m*Tz*Tmax)
   else
-     Tz = age
+     mass_linear = 0
   endif
-  if ((Tz.lt.Tmax).or.(Tz.gt.age)) then
-     Tz = age
-  endif
-  mass_linear = sfr_q * ((Tz - Tmax) - m/2.*(Tz**2 + Tmax**2) + m*Tz*Tmax)
+
+  mass_par = mass_tau + mass_linear
+  
+  ! integral of 1 from 0 to Tmax
   
   ! add constant and burst
   mass = mass_tau + mass_linear

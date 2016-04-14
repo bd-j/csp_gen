@@ -28,7 +28,7 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   
   ! Build a structure containing useful units, numbers, and switches for the
   ! weight calculations
-  call convert_sfhparams(pset,tage,sfhpars)
+  call convert_sfhparams(pset, tage, sfhpars)
      
   ! ----- Get SFH weights -----
   
@@ -46,13 +46,13 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
 
   ! Simha
   if (pset%sfh.eq.5) then
-     ! only calculate SFH weights for SSPs up to tage (plus the next one)
+     ! Only calculate SFH weights for SSPs up to tage (plus the next one)
      imax = min(max(locate(time_full, log10(sfhpars%tage)) + 1, 1), ntfull)
-     ! delayed-tau model portion
+     ! Delayed-tau model portion
      sfhpars%type = 4
      w1 = sfh_weight(sfhpars, 0, imax)
      m1 = sum(w1)
-     ! linear portion.  Need to set use_simha_limits flag to get corect limits
+     ! Linear portion.  Need to set use_simha_limits flag to get corect limits
      sfhpars%type = 5
      sfhpars%use_simha_limits = 1
      w2 = sfh_weight(sfhpars, 0, imax)
@@ -160,8 +160,8 @@ subroutine convert_sfhparams(pset, tage, sfh)
   else
      sfh%tq = sfh%tage - sfh%sf_trunc
   endif
-  ! get zero crossing time (in lookback time), avoiding divison by zero
-  ! note that only positive slopes have a chance to hit zero SFR
+  ! For simha get zero crossing time (in lookback time), avoiding divison by zero
+  ! Note that only positive slopes have a chance to hit zero SFR.
   if (sfh%sf_slope.gt.tiny_number) then
      sfh%t0 = sfh%tq - 1. / sfh%sf_slope
   else
