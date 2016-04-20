@@ -6,3 +6,5 @@ To Do
  4. deal with sfstart
  5. ~~rename `sfhint` to `intsfwght`, so `sfhinfo` can use `sfrint` with less confusion.~~
  6. deal with setting up sfhtab properly, check slope definition
+ 7. deal with multi-metallicity, especially for tabular. 
+ 8. write the burst case into `sfh_weight` (and `convert_sfhparams`)

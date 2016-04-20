@@ -1,22 +1,41 @@
 SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
      mass_ssp,lbol_ssp,tspec_ssp,&
      pset,ocompsp)
+  !
+  !
+  !N.B. variables not otherwise defined come from sps_vars.f90
+  use sps_vars
+  use sps_utils, only: write_isochrone, add_nebular, add_dust, &
+                       csp_gen, sfhinfo, &
+                       smoothspec, igm_absorb, getindx, getmags
+  implicit none
 
   INTEGER, INTENT(in) :: write_compsp,nzin
-  REAL(SP), INTENT(in), DIMENSION(ntfull,nzin) :: lbol_ssp,mass_ssp
-  REAL(SP), INTENT(in), DIMENSION(nspec,ntfull,nzin) :: tspec_ssp
-  REAL(SP), DIMENSION(nspec,ntfull,nzin) :: spec_ssp
   CHARACTER(100), INTENT(in) :: outfile
+  REAL(SP), INTENT(in), DIMENSION(ntfull, nzin) :: lbol_ssp,mass_ssp
+  REAL(SP), INTENT(in), DIMENSION(nspec, ntfull, nzin) :: tspec_ssp
+  TYPE(PARAMS), intent(in) :: pset
+
+  TYPE(COMPSPOUT), INTENT(inout), DIMENSION(ntfull) :: ocompsp
+
+  real(SP), DIMENSION(nspec, ntfull, nzin) :: spec_ssp
+  real(SP), dimension(ntfull) :: mdust_ssp
+  real(SP) :: nage, age, mdust, mass_frac, tsfr, zred
+  REAL(SP) :: lbol_csp, mass_csp
+  REAL(SP), DIMENSION(nspec) :: csp1, csp2, spec_dusty, spec_csp
+  REAL(SP), DIMENSION(nbands)  :: mags
+  REAL(SP), DIMENSION(nindx)   :: indx
+  integer :: i
 
   ! ------ Various checks and setup ------
-  
+
   IF (check_sps_setup.EQ.0) THEN
      WRITE(*,*) 'COMPSP ERROR: '//&
           'SPS_SETUP must be run before calling COMPSP. '
      STOP
   ENDIF
   !make sure various variables are set correctly
-  CALL COMPSP_WARNING(maxtime,pset,nzin,write_compsp)
+  CALL COMPSP_WARNING(maxtime, pset, nzin, write_compsp)
   !setup output files
   if (pset%tage.gt.0) then
      nage = 1
@@ -24,11 +43,11 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
      nage = ntfull
   endif
   IF (write_compsp.GT.0) &
-       CALL COMPSP_SETUP_OUTPUT(write_compsp,pset,outfile,1,nage)
+       CALL COMPSP_SETUP_OUTPUT(write_compsp, pset, outfile, 1, nage)
 
   ! Isochrone case just writes the CMDs and exits
   IF (write_compsp.EQ.5) THEN
-     CALL WRITE_ISOCHRONE(outfile,pset)
+     CALL WRITE_ISOCHRONE(outfile, pset)
      RETURN
   ENDIF
 
@@ -46,7 +65,7 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
              'emission and mult-metallicity SSPs in compsp'
         STOP
      endif
-     call add_nebular(pset,tspec_ssp(:,:,1),spec_ssp(:,:,1))
+     call add_nebular(pset, tspec_ssp(:,:,1), spec_ssp(:,:,1))
   endif
 
   ! Add dust emission
@@ -89,35 +108,35 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
         age = pset%tage
      else
         ! Otherwise we will calculate composite spectra for each SSP age.
-        age = 10**(time_full(i)-9)
+        age = 10**(time_full(i)-9.)
      endif
 
      ! -----
      ! Get the spectrum for this age.  Note this is always normalized to one
      ! solar mass formed, so we actually need to renormalize if computing all ages
      call csp_gen(mass_ssp,lbol_ssp,spec_ssp,mdust_ssp,&
-          pset,age,&
-          mass_csp,lbol_csp,spec_csp,mdust_csp)     
+                  pset,age,&
+                  mass_csp,lbol_csp,spec_csp,mdust_csp)
 
      call sfhinfo(pset, age, mass_frac, tsfr)
-     
+
      ! -------
      ! Now do a bunch of stuff with the spectrum
      ! Smooth the spectrum
      if (pset%sigma_smooth.GT.0.0) then
         call smoothspec(spec_lambda,spec_csp,pset%sigma_smooth,&
-             pset%min_wave_smooth,pset%max_wave_smooth)
+                        pset%min_wave_smooth,pset%max_wave_smooth)
      endif
      ! Add IGM absorption
      if (add_igm_absorption.EQ.1.AND.pset%zred.GT.tiny_number) then
         spec_csp = igm_absorb(spec_lambda,spec_csp,pset%zred,&
-             pset%igm_factor)
+                              pset%igm_factor)
      endif
      ! Compute spectral indices
      if (write_compsp.EQ.4) then
         call getindx(spec_lambda,spec_csp,indx)
      else
-        indx=0.0
+        indx = 0.0
      endif
      ! Compute mags
      if (redshift_colors.EQ.0) then
@@ -125,20 +144,20 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
      else
         ! here we compute the redshift at the corresponding age
         zred = min(max(linterp(cosmospl(:,2),cosmospl(:,1),&
-             10**time_full(i)/1E9),0.0),20.0)
+                       10**time_full(i)/1E9), 0.0), 20.0)
         call getmags(zred,spec_csp,mags,pset%mag_compute)
      endif
 
      ! ---------
      ! Store the spectrum and write....
-     call save_compsp(write_compsp,ocompsp(i),log10(age)+9,&
-          mass_csp,lbol_csp,mags,tsfr,spec_csp,mdust_csp,indx)
+     call save_compsp(write_compsp, ocompsp(i), log10(age)+9,&
+                      mass_csp, lbol_csp, mags, tsfr,spec_csp, mdust_csp, indx)
 
-     ! Terminate the loop if specific age was requested
+     ! Terminate the loop if a single specific tage was requested
      if (pset%tage.gt.0) then
         exit
      endif
-     
+
   enddo
 
   if (write_compsp.EQ.1.OR.write_compsp.EQ.3) CLOSE(10)

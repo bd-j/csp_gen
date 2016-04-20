@@ -43,6 +43,23 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
         total_weights = total_weights / mass
      endif
   endif
+  
+  ! Add constant and burst weights
+  if (((pset%sfh.eq.1).or.(pset%sfh.eq.4)).and.&
+       ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number))) then
+     ! Constant
+     sfhpars%type = 0
+     w1 = sfh_weight(sfhpars, 0, ntfull)
+     m1 = sum(w1)
+     ! burst.  These weights come pre-normalized to 1 Msun
+     sfhpars%type = -1
+     w2 = sfh_weight(sfhpars, 0, ntfull)
+     ! sum with proper relative normalization.  Beware divide by zero
+     if (m1.lt.tiny_number) m1 = 1.0
+     total_weights = (1 - pset%const - pset%fburst) * total_weights + &
+          pset%const * (w1 / m1) + &
+          pset%fburst * w2
+  endif
 
   ! Simha
   if (pset%sfh.eq.5) then
@@ -65,21 +82,6 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
      total_weights = w1 / m1 + simha_norm(pset) * (w2 / m2)
   endif
 
-  ! Add constant and burst weights
-  if (((pset%sfh.ne.2).and.(pset%sfh.ne.3)).and.&
-       ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number))) then
-     ! Constant
-     sfhpars%type = 0
-     w1 = sfh_weight(sfhpars, 0, ntfull)
-     m1 = sum(w1)
-     ! burst.  These weights come pre-normalized to 1 Msun
-     w2 = burst_weight(pset%tburst)
-     ! sum with proper relative normalization.  Beware divide by zero
-     if (m1.lt.tiny_number) m1 = 1.0
-     total_weights = (1 - pset%const - pset%fburst) * total_weights + &
-          pset%const * (w1 / m1) + &
-          pset%fburst * w2
-  endif
 
   ! Tabular.  Time units in sfhtab are assumed to be linear years of lookback time.
   if (pset%sfh.eq.2.or.pset%sfh.eq.3) then

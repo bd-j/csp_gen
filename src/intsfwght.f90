@@ -41,9 +41,9 @@ function intsfwght(sspind, logt, sfh):
   real(SP), intent(out) :: intsfwght
 
   if (interpolation_type.eq.0) then
-     intsfwght = (sfhwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))
+     intsfwght = (sfwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))
   else
-     intsfwght = (sfhwght_lin(sspind, 10**logt(2), sfh) - sfhwght_lin(sspind, 10**logt(1), sfh))
+     intsfwght = (sfwght_lin(sspind, 10**logt(2), sfh) - sfwght_lin(sspind, 10**logt(1), sfh))
   endif
   
 end function intsfwght
