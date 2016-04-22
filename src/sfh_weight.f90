@@ -16,7 +16,14 @@ function sfh_weight(sfh, imin, imax)
   real(SP) :: dt 
   real(SP), dimension(ntfull) :: left=0., right=0.
 
-  ! Check if we need to do the zero bin, using imin=0 as a flag
+  ! Check if this is an SSP.  If so, do simple weights and return
+  if (sfh%type.eq.-1) then
+     sfh_weight = ssp_weight(sfh%tb)
+     return
+  endif
+  
+  ! Check if we need to do the zero bin, using imin=0 as a flag.
+  ! If so, the zero bin is added at the end of this function.
   if (imin.eq.0) then
      do_zero_bin = 1
      imin = 1
@@ -72,8 +79,39 @@ function sfh_weight(sfh, imin, imax)
 end function sfh_weight
 
 
+function ssp_weight(tb)
+  ! Quick function to calculate SSP weights for a single arbitrary age.
+  !
+  ! Inputs
+  ! --------
+  !
+  ! tb:
+  !   burst time, linear years of lookback time
+  
+  use sps_vars, only: time_full, ntfull
+  implicit none
+
+  real(SP), intent(in) :: tb
+
+  real(SP), intent(out), dimension(ntfull) :: ssp_weight = 0.
+
+  integer :: imin
+  real(SP) :: log_tb, dt
+  
+  log_tb = log10(tb)
+  imin = min(max(locate(time_full, log_tb), 1, ntfull-1))
+  dt = delta_time(time_full(imin), time_full(imin+1))
+  ssp_weight(imin) = delta_time(log_tb, timefull(imin+1)) / dt
+  ssp_weight(imin+1) = delta_time(timefull(imin), log_tb) / dt
+
+end function ssp_weight
+
+  
 function delta_time(logt1, logt2)
-  ! Dumb function to properly calculate dt based on interpolation type
+  ! Dumb function to properly calculate dt based on interpolation type.
+  !
+  ! Returns (logt2 - logt1), or (10**logt2 - 10**logt1)
+  
   use sps_vars, only: interpolation_type
   implicit none
 

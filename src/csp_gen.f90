@@ -1,13 +1,30 @@
-subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
+subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
+                   mass_csp, lbol_csp, spec_csp)
   !
   ! Return the spectrum (and mass and lbol) of a composite stellar population.
   !
-  ! sfh=1: tau model
-  ! sfh=2: tabulated SFH (from file)
-  ! sfh=3: tabulated SFH (stored in sfhtab arr)
-  ! sfh=4: delayed tau model
-  ! sfh=5: custom SFH (see Simha et al. 2013)
-
+  ! Inputs
+  ! ---------
+  !
+  ! mass_ssp, lbol_ssp, spec_ssp:
+  !   The (surviving) stellar masses, bolometric luminosities, and spectra of
+  !   the SSPs.
+  !
+  ! pset:
+  !   A `PARAMS` structure containing the SFH parameters
+  !
+  ! tage:
+  !   The age (in Gyr) at which the spectrum is desired.  Note that this can be
+  !   different than pset%tage if the latter is 0.
+  !
+  ! Outputs
+  ! ---------
+  !
+  !
+  ! mass_csp, lbol_csp, spec_csp:
+  !   The (surviving) stellar masses, bolometric luminosity, and spectrum of
+  !   the composite stellar population at tage, normalized to 1 M_sun *formed*.
+  
   use sps_vars, only: ntfull, nspec, time_full, tiny_number, sfhtab
   use sps_utils, only: locate, sfh_weight
   implicit none
@@ -17,8 +34,8 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   type(PARAMS), intent(in) :: pset
   real(SP), intent(in) :: tage
   
-  real(SP), intent(out), dimension(ntfull) :: mass_csp, lbol_csp
-  real(SP), intent(in), dimension(nspec,ntfull) :: spec_csp
+  real(SP), intent(out), dimension(ntfull) :: mass_csp, csp_lbol
+  real(SP), intent(in), dimension(nspec,ntfull) :: scsp
 
 
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
@@ -31,12 +48,21 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   call convert_sfhparams(pset, tage, sfhpars)
      
   ! ----- Get SFH weights -----
+
+  ! SSP.
+  if (pset%sfh.eq.0) then
+     ! Make sure to use SSP weighting scheme
+     sfhpars%type = -1
+     ! Use tage as the burst lookback time, instead of tage-tburst
+     sfhpars%tb = sfhpars%tage
+     total_weights = sfh_weight(sfhpars, 0, ntfull)
+  endif
   
-  ! Tau and delayed-tau
-  if ((pset%sfh.EQ.1).OR.(pset%sfh.EQ.4)) THEN
+  ! Tau and delayed-tau.
+  if ((pset%sfh.eq.1).or.(pset%sfh.eq.4)) then
      sfhpars%type = pset%sfh
      ! only calculate SFH weights for SSPs up to tage (plus the next one)
-     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 1, 1), ntfull)
+     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
      total_weights = sfh_weight(sfhpars, 0, imax)
      mass = sum(total_weights)
      if (mass.lt.tiny_number) then
@@ -44,27 +70,27 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
      endif
   endif
   
-  ! Add constant and burst weights
+  ! Add constant and burst weights.
   if (((pset%sfh.eq.1).or.(pset%sfh.eq.4)).and.&
        ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number))) then
      ! Constant
      sfhpars%type = 0
      w1 = sfh_weight(sfhpars, 0, ntfull)
      m1 = sum(w1)
-     ! burst.  These weights come pre-normalized to 1 Msun
+     ! Burst.  These weights come pre-normalized to 1 Msun
      sfhpars%type = -1
      w2 = sfh_weight(sfhpars, 0, ntfull)
      ! sum with proper relative normalization.  Beware divide by zero
      if (m1.lt.tiny_number) m1 = 1.0
      total_weights = (1 - pset%const - pset%fburst) * total_weights + &
-          pset%const * (w1 / m1) + &
-          pset%fburst * w2
+                      pset%const * (w1 / m1) + &
+                      pset%fburst * w2
   endif
 
   ! Simha
   if (pset%sfh.eq.5) then
      ! Only calculate SFH weights for SSPs up to tage (plus the next one)
-     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 1, 1), ntfull)
+     imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
      ! Delayed-tau model portion
      sfhpars%type = 4
      w1 = sfh_weight(sfhpars, 0, imax)
@@ -95,11 +121,11 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
         mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
         ! min and max ssps to consider
         imin = min(max(locate(time_full, log10(sfhtab(i, 1))) - 1, 0), ntfull)
-        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 1, 0), ntfull)
+        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 2, 0), ntfull)
         ! set integration limits
         sfhpars%tq = sfhtab(i, 1)
         sfhpars%tage = sfhtab(i+1, 1)
-        sfhpars%sf_slope = (sfhtab(i,2) - sfhtab(i+1, 2)) / (sfhtab(i+1,1) - sfhtab(i, 1))
+        sfhpars%sf_slope = (sfhtab(i, 2) - sfhtab(i+1, 2)) / (sfhtab(i+1, 1) - sfhtab(i, 1))
         
         ! get the weights for this bin in the tabulated sfh and add to the
         ! total weight, after normalizing
@@ -118,6 +144,7 @@ subroutine csp_gen(mass_ssp,lbol_ssp,spec_ssp,pset,tage,csp_spec)
   csp_lbol = 
   
 end subroutine csp_gen
+
 
 subroutine convert_sfhparams(pset, tage, sfh)
   ! Convert the pset values to yrs and pre-calculate some useful lookback
@@ -153,10 +180,15 @@ subroutine convert_sfhparams(pset, tage, sfh)
   ! Convert units from Gyr to yr
   sfh%tage = tage * 1e9
   sfh%tau = pset%tau * 1e9
+  sfh%tburst = pset%tburst * 1e9
   sfh%sf_trunc = pset%sf_trunc * 1e9
-  sfh%sf_slope = pset%sf_slope / 1e9
+  ! Note the sign flip here!
+  sfh%sf_slope = -pset%sf_slope / 1e9
 
-  ! convert sf_trunc to to t_lookback
+  ! convert tburst to lookback time
+  sfh%tb = sfh%tage - sfh%tburst
+  
+  ! convert sf_trunc to to lookback time
   if ((sfh%sf_trunc.le.0).or.(sfh%sf_trunc.gt.sfh%tage)) then
      sfh%tq = 0.
   else
