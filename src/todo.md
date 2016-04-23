@@ -8,3 +8,5 @@ To Do
  7. deal with multi-metallicity, especially for tabular. 
  8. ~~write the burst case into `sfh_weight` (and `convert_sfhparams`)~~
  9. ~~check and fix `locate` usage ~~
+ 10. ~~ write interfaces~~
+ 

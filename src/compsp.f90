@@ -83,6 +83,8 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
   ! We could probably also do a little better by attenuating up to the SSP
   ! *nearest* in age to dust_tesc, instead of the oldest SSP still younger than
   ! dust_tesc
+  !
+  ! Also do we really need to loop over *all* SSPs?
   if ((pset%dust1.gt.tiny_number).or.(pset%dust2.gt.tiny_number)) then
      do i=1, ntfull
         csp1 = 0.0

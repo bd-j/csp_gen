@@ -20,7 +20,6 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
   ! Outputs
   ! ---------
   !
-  !
   ! mass_csp, lbol_csp, spec_csp:
   !   The (surviving) stellar masses, bolometric luminosity, and spectrum of
   !   the composite stellar population at tage, normalized to 1 M_sun *formed*.
@@ -39,7 +38,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
 
 
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
-  integer :: imin, imax
+  integer :: j, imin, imax
   type(SFHPARAMS) :: sfhpars
   real(SP) :: mass, m1, m2
   
@@ -55,6 +54,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
      sfhpars%type = -1
      ! Use tage as the burst lookback time, instead of tage-tburst
      sfhpars%tb = sfhpars%tage
+     ! These come pre-normalized to 1 Msun
      total_weights = sfh_weight(sfhpars, 0, ntfull)
   endif
   
@@ -64,10 +64,10 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
      ! only calculate SFH weights for SSPs up to tage (plus the next one)
      imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
      total_weights = sfh_weight(sfhpars, 0, imax)
-     mass = sum(total_weights)
-     if (mass.lt.tiny_number) then
-        total_weights = total_weights / mass
-     endif
+     ! Could save some loops by having proper normalization analytically from sfh_weight
+     m1 = sum(total_weights)
+     if (m1.lt.tiny_number) m1 = 1.0
+     total_weights = total_weights / m1
   endif
   
   ! Add constant and burst weights.
@@ -137,7 +137,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
      enddo
   endif
 
-  ! Now weight each SSP by `total_weight` and sum
+  ! Now weight each SSP by `total_weight` and sum.
   ! This matrix multiply could probably be optimized!!!!
   do j=0, ntfull
      if (total_weight(j).gt.tiny_number) then
