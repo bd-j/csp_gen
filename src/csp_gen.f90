@@ -30,12 +30,12 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
   implicit none
 
   real(SP), intent(in), dimension(ntfull) :: mass_ssp, lbol_ssp
-  real(SP), intent(in), dimension(nspec,ntfull) :: spec_ssp
+  real(SP), intent(in), dimension(nspec, ntfull) :: spec_ssp
   type(PARAMS), intent(in) :: pset
   real(SP), intent(in) :: tage
   
-  real(SP), intent(out), dimension(ntfull) :: mass_csp, csp_lbol
-  real(SP), intent(in), dimension(nspec,ntfull) :: scsp
+  real(SP), intent(out) :: mass_csp, csp_lbol
+  real(SP), intent(in), dimension(nspec) :: spec_csp
 
 
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
@@ -138,10 +138,14 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
   endif
 
   ! Now weight each SSP by `total_weight` and sum
-  ! need to add in the zero bin as well
-  csp_spec =
-  csp_mass =
-  csp_lbol = 
+  ! This matrix multiply could probably be optimized!!!!
+  do j=0, ntfull
+     if (total_weight(j).gt.tiny_number) then
+        spec_csp = spec_csp + total_weight(j) * spec_ssp(:, j)
+     endif
+  enddo
+  mass_csp = sum(mass_ssp * total_weight)
+  lbol_csp = sum(lbol_ssp * total_weight)
   
 end subroutine csp_gen
 

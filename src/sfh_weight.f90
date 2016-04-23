@@ -5,10 +5,10 @@ function sfh_weight(sfh, imin, imax)
   use sps_vars, only: ntfull, time_full, pset, interpolation_type, tiny_logt
   use sps_utils, only: sfhint, sfhlimits
   implicit none
-  
+
   type(SFHPARAMS), intent(in) :: sfh
   integer, intent(in) :: imin, imax
-  
+
   real(SP), intent(out), dimension(ntfull) ::sfh_weight=0.
 
   integer :: i, do_zero_bin=0
@@ -21,7 +21,7 @@ function sfh_weight(sfh, imin, imax)
      sfh_weight = ssp_weight(sfh%tb)
      return
   endif
-  
+
   ! Check if we need to do the zero bin, using imin=0 as a flag.
   ! If so, the zero bin is added at the end of this function.
   if (imin.eq.0) then
@@ -57,7 +57,7 @@ function sfh_weight(sfh, imin, imax)
         endif
      endif
   enddo
-  
+
   sfh_weight = right + left
 
   ! Do we need to add weights from the zero bin to the first SSP?
@@ -75,7 +75,7 @@ function sfh_weight(sfh, imin, imax)
         sfh_weight(1) = sfh_weight(1) + intsfwght(1, tlim, sfh) / dt
      endif
   endif
-  
+
 end function sfh_weight
 
 
@@ -97,7 +97,7 @@ function ssp_weight(tb)
 
   integer :: imin
   real(SP) :: log_tb, dt
-  
+
   log_tb = log10(tb)
   imin = min(max(locate(time_full, log_tb), 1, ntfull-1))
   dt = delta_time(time_full(imin), time_full(imin+1))
@@ -111,7 +111,7 @@ function delta_time(logt1, logt2)
   ! Dumb function to properly calculate dt based on interpolation type.
   !
   ! Returns (logt2 - logt1), or (10**logt2 - 10**logt1)
-  
+
   use sps_vars, only: interpolation_type
   implicit none
 
