@@ -38,12 +38,12 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
 
 
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
-  integer :: j, imin, imax
+  integer :: j, imin=0, imax=ntfull
   type(SFHPARAMS) :: sfhpars
   real(SP) :: mass, m1, m2
   
   ! Build a structure containing useful units, numbers, and switches for the
-  ! weight calculations
+  ! weight calculations.
   call convert_sfhparams(pset, tage, sfhpars)
      
   ! ----- Get SFH weights -----
@@ -52,16 +52,18 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
   if (pset%sfh.eq.0) then
      ! Make sure to use SSP weighting scheme
      sfhpars%type = -1
-     ! Use tage as the burst lookback time, instead of tage-tburst
+     ! Use tage as the burst lookback time, instead of tage-tburst.
      sfhpars%tb = sfhpars%tage
+     imin = min(max(locate(time_full, log10(sfhpars%tage)), 0), ntfull)
+     imax = min(imin+1, ntfull)
      ! These come pre-normalized to 1 Msun
-     total_weights = sfh_weight(sfhpars, 0, ntfull)
+     total_weights = sfh_weight(sfhpars, imin, imax)
   endif
   
   ! Tau and delayed-tau.
   if ((pset%sfh.eq.1).or.(pset%sfh.eq.4)) then
      sfhpars%type = pset%sfh
-     ! only calculate SFH weights for SSPs up to tage (plus the next one)
+     ! Only calculate SFH weights for SSPs up to tage (plus the next one).
      imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
      total_weights = sfh_weight(sfhpars, 0, imax)
      ! Could save some loops by having proper normalization analytically from sfh_weight
@@ -70,17 +72,17 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
      total_weights = total_weights / m1
   endif
   
-  ! Add constant and burst weights.
+  ! Add constant and burst weights for SFH=1,4
   if (((pset%sfh.eq.1).or.(pset%sfh.eq.4)).and.&
        ((pset%const.gt.0).or.(pset%fburst.gt.tiny_number))) then
      ! Constant
      sfhpars%type = 0
      w1 = sfh_weight(sfhpars, 0, ntfull)
      m1 = sum(w1)
-     ! Burst.  These weights come pre-normalized to 1 Msun
+     ! Burst.  These weights come pre-normalized to 1 Msun.
      sfhpars%type = -1
      w2 = sfh_weight(sfhpars, 0, ntfull)
-     ! sum with proper relative normalization.  Beware divide by zero
+     ! Sum with proper relative normalization.  Beware divide by zero.
      if (m1.lt.tiny_number) m1 = 1.0
      total_weights = (1 - pset%const - pset%fburst) * total_weights + &
                       pset%const * (w1 / m1) + &
@@ -89,20 +91,20 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
 
   ! Simha
   if (pset%sfh.eq.5) then
-     ! Only calculate SFH weights for SSPs up to tage (plus the next one)
+     ! Only calculate SFH weights for SSPs up to tage (plus the next one).
      imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
-     ! Delayed-tau model portion
+     ! Delayed-tau model portion.
      sfhpars%type = 4
      w1 = sfh_weight(sfhpars, 0, imax)
      m1 = sum(w1)
-     ! Linear portion.  Need to set use_simha_limits flag to get corect limits
+     ! Linear portion.  Need to set use_simha_limits flag to get correct limits.
      sfhpars%type = 5
      sfhpars%use_simha_limits = 1
      w2 = sfh_weight(sfhpars, 0, imax)
      sfhpars%use_simha_limits = 0
      m2 = sum(w2)
-     ! normalize and sum.  need to be careful of divide by zero here, if all
-     ! linear or all delay-tau s.t. weights sum to zero for a component
+     ! Normalize and sum.  need to be careful of divide by zero here, if all
+     ! linear or all delay-tau s.t. weights sum to zero for a component.
      if (m1.lt.tiny_number) m1 = 1.0
      if (m2.lt.tiny_number) m2 = 1.0
      total_weights = w1 / m1 + simha_norm(pset) * (w2 / m2)
@@ -113,9 +115,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
   if (pset%sfh.eq.2.or.pset%sfh.eq.3) then
      total_weights = 0.
      call setup_tabular()
-     ! linearly interpolate in the bins
+     ! Linearly interpolate in the bins.
      sfhpars%type = 5
-     ! loop over each bin
+     ! Loop over each bin.
      do i=1,ntabsfh-1
         ! mass formed in this bin assuming linear
         mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
@@ -133,13 +135,13 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
         m1 = sum(w1)
         if (m1.lt.tiny_number) m1 = 1.0
         total_weight = total_weight + w1 * (mass / m1)
-        
      enddo
+     imax = ntfull
   endif
 
   ! Now weight each SSP by `total_weight` and sum.
   ! This matrix multiply could probably be optimized!!!!
-  do j=0, ntfull
+  do j=0, imax
      if (total_weight(j).gt.tiny_number) then
         spec_csp = spec_csp + total_weight(j) * spec_ssp(:, j)
      endif
@@ -172,6 +174,7 @@ subroutine convert_sfhparams(pset, tage, sfh)
   !    useful lookback times.
   !       - `tq` is the truncation time, in lookback time
   !       - `t0` is the zero crossing time for a linear SFH, in lookback time.
+  !       - `tb` is the burst time, in lookback time.
   !
   use sps_vars, only: pset
   implicit none
@@ -221,11 +224,11 @@ function simha_norm(pset)
   implicit none
   type(PARAMS), intent(in) :: pset
 
+  real(SP) :: simha_norm
+
   real(SP) :: Tmax, Tz
   real(SP) :: mass_tau, mass_linear
   real(SP) :: m, sfr_q
-
-  real(SP) intent(out) :: simha_norm
 
   m = pset%sf_slope
   

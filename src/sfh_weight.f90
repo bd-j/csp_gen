@@ -1,8 +1,29 @@
 function sfh_weight(sfh, imin, imax)
   ! Function to calculate the weights
   !
+  ! Inputs
+  ! --------
   !
-  use sps_vars, only: ntfull, time_full, pset, interpolation_type, tiny_logt
+  ! sfh:
+  !   An SFHPARAMS structure, containing SFH parameters in yrs, and some
+  !   useful lookback times.
+  !
+  ! imin:
+  !   The index of the youngest SSP to consider.  If zero, weights for the t=0
+  !   -> t=time_full(1) bin will be added to sfh_weights(1)
+  !
+  ! imax:
+  !   The oldest SSP to consider.  This should usually be the next oldest SSP
+  !   compared to tage.
+  !
+  ! Outputs
+  ! --------
+  !
+  ! sfh_weight:
+  !   array of shape `ntfull` that gives the proper weights for the SSPs to
+  !   produce the SFH.
+
+  use sps_vars, only: ntfull, time_full, pset, tiny_logt
   use sps_utils, only: intsfwght, sfhlimit
   implicit none
 
@@ -11,12 +32,12 @@ function sfh_weight(sfh, imin, imax)
 
   real(SP), dimension(ntfull) ::sfh_weight=0.
 
-  integer :: i
+  integer :: i, istart
   real(SP) dimension(2) :: tlim
   real(SP) :: dt
   real(SP), dimension(ntfull) :: tmp_wght=0. !left=0., right=0.
 
-  ! Check if this is an SSP.  If so, do simple weights and return
+  ! Check if this is an SSP.  If so, do simple weights and return.
   if (sfh%type.eq.-1) then
      sfh_weight = ssp_weight(sfh%tb)
      return
@@ -25,7 +46,8 @@ function sfh_weight(sfh, imin, imax)
   ! Loop over each SSP and calculate its weight in the given sfh.
   ! Note we skip i=0 for now, which is a flag for adding in the bin from t=0 to
   ! t=time_full(1).
-  do i=max(imin, 1), imax
+  istart = max(imin, 1)
+  do i=istart, imax
      if (i.gt.1) then
         ! There is a younger (`left`) bin, and we calculate its contribution to
         ! the weight.
@@ -33,7 +55,7 @@ function sfh_weight(sfh, imin, imax)
         tlim(1) = sfhlimit(time_full(i-1), sfh)
         tlim(2) = sfhlimit(time_full(i), sfh)
         ! The elements of `tlim` will be equal if there is no valid SFR in the
-        ! younger bin; only proceed if there is a non-zero sfr in the younger bin
+        ! younger bin; only proceed if there is a non-zero sfr in the younger bin.
         if (tlim(1).ne.tlim(2)) then
            dt = delta_time(time_full(i-1), time_full(i))
            ! Note sign flip here
@@ -42,11 +64,12 @@ function sfh_weight(sfh, imin, imax)
         endif
      endif
      if (i.lt.ntfull) then
-        ! There is an older (`right`) bin, we calculate its contribution to the weight
+        ! There is an older (`right`) bin, we calculate its contribution to the
+        ! weight.
         tlim(1) = sfhlimit(time_full(i), sfh)
         tlim(2) = sfhlimit(time_full(i+1), sfh)
         ! The elements of `tlim` will be equal if there is no valid SFR in the
-        ! younger bin; only proceed if there is a non-zero sfr in the older bin
+        ! younger bin; only proceed if there is a non-zero sfr in the older bin.
         if (tlim(1).ne.tlim(2)) then
            dt = delta_time(time_full(i), time_full(i+1))
            !right(i) = intsfwght(i+1, tlim, sfh) / dt
@@ -64,9 +87,9 @@ function sfh_weight(sfh, imin, imax)
      tlim(2) = sfhlimit(time_full(1), sfh)
      if (tlim(1).ne.tlim(2)) then
         dt = delta_time(tiny_logt, time_full(1))
-        ! contribution of i=1 to younger bin
+        ! Contribution of i=1 to younger bin.
         tmp_wght(1) = tmp_wght(1) - intsfwght(0, tlim, sfh) / dt
-        ! contribution of i=0 to older bin
+        ! Contribution of i=0 to older bin
         tmp_wght(1) = tmp_wght(1) + intsfwght(1, tlim, sfh) / dt
      endif
   endif
@@ -83,20 +106,21 @@ function ssp_weight(tb)
   ! --------
   !
   ! tb:
-  !   burst time, linear years of lookback time.
+  !   Burst time, linear years of lookback time.
   !
   ! Outputs
   ! --------
   !
   ! ssp_weight:
-  !   burst time, linear years of lookback time
+  !   Array of shape ntfull that is zeros except for the bracketing SSP ages,
+  !   where the proper SSP weights are given.
   
   use sps_vars, only: time_full, ntfull
   implicit none
 
   real(SP), intent(in) :: tb
 
-  real(SP), intent(out), dimension(ntfull) :: ssp_weight = 0.
+  real(SP), dimension(ntfull) :: ssp_weight = 0.
 
   integer :: imin
   real(SP) :: log_tb, dt
@@ -119,7 +143,7 @@ function delta_time(logt1, logt2)
   implicit none
 
   real(SP), intent(in) :: logt1, logt2
-  real(SP), intent(out) :: delta_time
+  real(SP) :: delta_time
   if (interpolation_type.eq.1) then
      delta_time = logt2 - logt1
   else

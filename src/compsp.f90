@@ -1,6 +1,6 @@
-SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
-     mass_ssp,lbol_ssp,tspec_ssp,&
-     pset,ocompsp)
+SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
+                  mass_ssp, lbol_ssp, tspec_ssp,&
+                  pset, ocompsp)
   !
   !
   !N.B. variables not otherwise defined come from sps_vars.f90
@@ -36,6 +36,7 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
   ENDIF
   !make sure various variables are set correctly
   CALL COMPSP_WARNING(maxtime, pset, nzin, write_compsp)
+
   !setup output files
   if (pset%tage.gt.0) then
      nage = 1
@@ -57,7 +58,7 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
   ! Also we will operate on copies of the spectra
 
   spec_ssp = tspec_ssp
-  
+
   ! Add nebular emission
   if (add_neb_emission.EQ.1) then
      if (nzin.GT.1) then
@@ -106,16 +107,18 @@ SUBROUTINE COMPSP(write_compsp,nzin,outfile,&
   ! loop over output ages
   do i=1,ntfull
      if (pset%tage.gt.0) then
-        ! A specific age was asked for, we will only compute one spectrum
+        ! A specific age was asked for, so we will only compute one spectrum at
+        ! that age.
         age = pset%tage
      else
-        ! Otherwise we will calculate composite spectra for each SSP age.
+        ! Otherwise we will calculate composite spectra for every SSP age.
         age = 10**(time_full(i)-9.)
      endif
 
      ! -----
      ! Get the spectrum for this age.  Note this is always normalized to one
-     ! solar mass formed, so we actually need to renormalize if computing all ages
+     ! solar mass formed, so we actually need to renormalize if computing all
+     ! ages, which is done using info from `sfhinfo`
      call csp_gen(mass_ssp,lbol_ssp,spec_ssp,mdust_ssp,&
                   pset,age,&
                   mass_csp,lbol_csp,spec_csp,mdust_csp)

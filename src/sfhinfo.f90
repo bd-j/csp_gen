@@ -1,7 +1,7 @@
 subroutine sfhinfo(pset, age, mfrac, sfr)
 
   mfrac = sfint(pset, age) / sfint(pset)
-  sfr = get_sfr(pset)
+  sfr = get_sfr(pset, age)
   
 end subroutine sfhinfo
 
@@ -27,19 +27,27 @@ function sfint(pset, tage)
      age = pset%tage
   endif
   
-  ! mass in the tau portion.  this is the integral of (T/tau)^p e^(-T/tau) from 0 to Tmax
+  ! Get the mass in the tau portion.
+  ! This is the integral of (T/tau)^power e^(-T/tau) from 0 to Tmax
   if ((pset%sf_trunc.le.0).or.(pset%sf_trunc.gt.age)) then
-     Tmax = age
+     Tmax = age - pset%sfstart
   else
-     Tmax = pset%sf_trunc
+     Tmax = pset%sf_trunc - pset%sfstart
   endif
   mass_tau = pset%tau * gammainc(power, Tmax/pset%tau)
-    
-  ! Mass in the linear portion. This is integral of (1 - m * (T - Tmax)) from
-  ! Tmax to Tzero
-  ! sfr at sf_trunc
-  sfr_q = (Tmax/pset%tau) * exp(-Tmax/pset%tau)
+
+  ! Add constant and burst
+  if ((pset%sfh.eq.1).or.(pset%sfh.eq.4)) then
+     
+     sfint = (1. - pset%const - pset%fburst) * mass_tau + &
+              pset%const*min/(pset%sf_trunc)
+  endif
+  
+  ! Add the linear portion. for simha.
+  ! This is integral of (1 - m * (T - Tmax)) from Tmax to Tzero
+
   if (pset%sfh.eq.5) then
+     sfr_q = (Tmax/pset%tau) * exp(-Tmax/pset%tau)
      if (m.gt.0) then
         Tz = Tmax + 1.0/m
      else

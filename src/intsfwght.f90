@@ -29,7 +29,7 @@ function intsfwght(sspind, logt, sfh):
   ! Outputs
   !--------
   !  intsfwght:
-  !    The exact definite integral between the limits specified in `logt`
+  !    The exact definite integral between the limits specified in `logt`.
   
   use sps_vars, only: interpolation_type
   implicit none
@@ -38,7 +38,7 @@ function intsfwght(sspind, logt, sfh):
   real(SP), intent(in), dimension(2) :: logt
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: intsfwght
+  real(SP) :: intsfwght
 
   if (interpolation_type.eq.0) then
      intsfwght = (sfwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))
@@ -73,7 +73,7 @@ function sfwght_log(sspind, logt, sfh)
   ! Outputs
   !--------
   !  sfwght_log:
-  !    The exact indefinite integral, evaluated at `logt`
+  !    The exact indefinite integral, evaluated at `logt`.  Scalar float.
   
   use sps_vars, only: time_full, tiny_logt
   use sps_utils, only: expi
@@ -83,14 +83,15 @@ function sfwght_log(sspind, logt, sfh)
   real(SP), intent(in) :: logt
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: sfwght_log
+  real(SP) :: sfwght_log
 
   real(SP) :: loge
   real(SP) :: logage, tprime ! intermediate time variables
-  real(SP) :: a, b, c !dummy variables used to break up long expressions
+  real(SP) :: a, b, c ! dummy variables used to break up long expressions
 
   loge = log10(exp(1))
-  ! zero index means use ~0 age
+
+  ! Zero index means use ~0 age.
   if (sspind.gt.0) then
      logage = time_full(sspind)
   else
@@ -109,11 +110,10 @@ function sfwght_log(sspind, logt, sfh)
   else if (sfh%type.eq.4) then
      ! SFR = delayed exponential ~ T/tau exp(-T/tau)
      tprime = 10**logt / sfh%tau ! t/tau
-     a = 10**logt * (logt - logage) + &
-          sfh%tage * logage + &
-          sfh%tau * (logage - loge)
-     b = sfh%tau * (logt * exp(tprime) - loge * expi(tprime))
-     sfwght_log = a * exp(tprime) - b * (tage / sfh%tau + 1)
+     a = (10**logt - sfh%tage - sfh%tau) * (logt - logage)
+     b = sfh%tau * loge
+     c = (sfh%tage + sfh%tau) * loge
+     sfwght_log = (a - b) * exp(tprime) + c * expi(tprime)
      
   else if (sfh%type.eq.5) then
      !SFR = linear ~ (1 - sf_slope * (T - T_trunc)), T > T_trunc
@@ -143,7 +143,7 @@ function sfwght_lin(sspind, t, sfh)
   !    weight for.
   !
   ! t:
-  !    Where the indefinite integral is evaluated, linear years (lookback time)
+  !    Where the indefinite integral is evaluated, linear years (lookback time).
   !
   ! sfh:
   !    Structure containing the SFH parameters in units of years, including an
@@ -161,14 +161,14 @@ function sfwght_lin(sspind, t, sfh)
   real(SP), intent(in) :: t
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: sfwght_lin
+  real(SP) :: sfwght_lin
   
   real(SP) :: age, tprime
   real(SP) :: loge, a
 
   loge = log10(exp(1.0))
 
-  ! convert from log(age_ssp) to age_ssp,
+  ! Convert from log(age_ssp) to age_ssp,
   ! accounting for the case sspind=0 (where age~0)
   if (sspind.gt.0) then
      age = 10**time_full(sspind)

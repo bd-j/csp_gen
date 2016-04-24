@@ -8,10 +8,10 @@ function sfhlimit(tlim, sfh)
   ! ----------
   !
   ! tlim:
-  !    The proposed limit of the integration, in log(lookback_time(yrs))
+  !    The proposed limit of the integration, in log(lookback_time(yrs)).
   !
   ! sfh:
-  !    An sfhparams structure containing the relevant special lookback times
+  !    An sfhparams structure containing the relevant special lookback times.
   !
   use sps_vars, only: tiny_logt
   implicit none
@@ -19,7 +19,7 @@ function sfhlimit(tlim, sfh)
   real(SP), intent(in) :: tlim
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP), intent(out) :: sfhlimit
+  real(SP) :: sfhlimit
   
   real(SP) :: tlo, thi
   
@@ -37,24 +37,11 @@ function sfhlimit(tlim, sfh)
      thi = sfh%tage
   endif
   
-  ! convert to log, taking care of possible zeros
+  ! Convert to log, taking care of possible zeros.
   tlo = log10(max(tlo, 10**tiny_logt))
   thi = log10(max(thi, 10**tiny_logt))
   
   ! Finally, clip proposed limit to the upper and lower value
-  sfhlimit = clip(tlim, tlo, thi)
+  sfhlimit = MIN(MAX(tlim, tlo), thi)
   
 end function sfhlimit
-
-function clip(x, lo, hi):
-  ! stupid function to clip x to the range (lo, hi)
-  ! works with reals
-  implicit none
-  
-  real(SP), intent(in) :: x, lo, hi
-  real(SP), intent(out) :: clip
-  
-  clip  = MIN(MAX(x, lo), hi)
-  
-end function clip
-
