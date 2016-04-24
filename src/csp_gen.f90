@@ -219,7 +219,6 @@ end subroutine convert_sfhparams
 function simha_norm(pset)
   ! Get the relative normalization of the linear and delyed tau portions of the
   ! simha SFH
-  !
   
   implicit none
   type(PARAMS), intent(in) :: pset

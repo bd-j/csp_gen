@@ -23,7 +23,7 @@ function sfh_weight(sfh, imin, imax)
   !   array of shape `ntfull` that gives the proper weights for the SSPs to
   !   produce the SFH.
 
-  use sps_vars, only: ntfull, time_full, pset, tiny_logt
+  use sps_vars, only: ntfull, time_full, tiny_logt
   use sps_utils, only: intsfwght, sfhlimit
   implicit none
 
