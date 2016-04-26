@@ -30,11 +30,11 @@ function sfh_weight(sfh, imin, imax)
   type(SFHPARAMS), intent(in) :: sfh
   integer, intent(in) :: imin, imax
 
-  real(SP), dimension(ntfull) ::sfh_weight=0.
+  real(SP), dimension(ntfull) ::sfh_weight=0., ssp_weight
 
   integer :: i, istart
   real(SP) dimension(2) :: tlim
-  real(SP) :: dt
+  real(SP) :: dt, delta_time
   real(SP), dimension(ntfull) :: tmp_wght=0. !left=0., right=0.
 
   ! Check if this is an SSP.  If so, do simple weights and return.
@@ -120,10 +120,10 @@ function ssp_weight(tb)
 
   real(SP), intent(in) :: tb
 
-  real(SP), dimension(ntfull) :: ssp_weight = 0.
+  real(SP), dimension(ntfull) :: ssp_weight=0.
 
   integer :: imin
-  real(SP) :: log_tb, dt
+  real(SP) :: log_tb, dt, delta_time
 
   log_tb = log10(tb)
   imin = min(max(locate(time_full, log_tb), 1, ntfull-1))
@@ -144,6 +144,7 @@ function delta_time(logt1, logt2)
 
   real(SP), intent(in) :: logt1, logt2
   real(SP) :: delta_time
+
   if (interpolation_type.eq.1) then
      delta_time = logt2 - logt1
   else

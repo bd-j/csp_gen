@@ -38,7 +38,7 @@ function intsfwght(sspind, logt, sfh):
   real(SP), intent(in), dimension(2) :: logt
   type(SFHPARAMS), intent(in) :: sfh
 
-  real(SP) :: intsfwght
+  real(SP) :: intsfwght, sfwght_log, sfwght_lin
 
   if (interpolation_type.eq.0) then
      intsfwght = (sfwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))

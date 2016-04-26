@@ -1,5 +1,5 @@
 FUNCTION LOCATE(xx,x)
-  ! Returns the index of `xx` that is closest to but below `x`.
+  ! Returns the index of the sorted array `xx` that is closest to but below `x`.
   !
   ! That is, the element of `xx` that won The Price is Right.
 
