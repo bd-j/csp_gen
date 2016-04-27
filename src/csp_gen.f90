@@ -1,5 +1,5 @@
-subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp,
-                   pset, tage,&
+subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
+                   pset, tage, &
                    mass_csp, lbol_csp, spec_csp, mdust_csp)
   !
   ! Return the spectrum (and mass and lbol) of a composite stellar population.
@@ -25,7 +25,8 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp,
   !   The (surviving) stellar masses, bolometric luminosity, and spectrum of
   !   the composite stellar population at tage, normalized to 1 M_sun *formed*.
   
-  use sps_vars, only: ntfull, nspec, time_full, tiny_number, sfhtab
+  use sps_vars, only: ntfull, nspec, time_full, tiny_number, &
+                      sfhparams, params, SP
   use sps_utils, only: locate, sfh_weight, sfhinfo
   implicit none
 
@@ -35,11 +36,11 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp,
   real(SP), intent(in) :: tage
   
   real(SP), intent(out) :: mass_csp, lbol_csp, mdust_csp
-  real(SP), intent(in), dimension(nspec) :: spec_csp
+  real(SP), intent(out), dimension(nspec) :: spec_csp
 
 
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
-  integer :: j, imin=0, imax=ntfull
+  integer :: i, j, imin=0, imax=ntfull, ntabsfh
   type(SFHPARAMS) :: sfhpars
   real(SP) :: mass, m1, m2, frac_linear, mfrac, sfr
   
@@ -123,28 +124,28 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp,
   ! Tabular.  Time units in sfhtab are assumed to be linear years of lookback time.
   if (pset%sfh.eq.2.or.pset%sfh.eq.3) then
      total_weights = 0.
-     call setup_tabular()
-     ! Linearly interpolate in the bins.
-     sfhpars%type = 5
-     ! Loop over each bin.
-     do i=1,ntabsfh-1
-        ! mass formed in this bin assuming linear
-        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
-        ! min and max ssps to consider
-        imin = min(max(locate(time_full, log10(sfhtab(i, 1))) - 1, 0), ntfull)
-        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 2, 0), ntfull)
-        ! set integration limits
-        sfhpars%tq = sfhtab(i, 1)
-        sfhpars%tage = sfhtab(i+1, 1)
-        sfhpars%sf_slope = (sfhtab(i, 2) - sfhtab(i+1, 2)) / (sfhtab(i+1, 1) - sfhtab(i, 1))
-        
-        ! get the weights for this bin in the tabulated sfh and add to the
-        ! total weight, after normalizing
-        w1 = sfh_weight(sfh_pars, imin, imax)
-        m1 = sum(w1)
-        if (m1.lt.tiny_number) m1 = 1.0
-        total_weight = total_weight + w1 * (mass / m1)
-     enddo
+!     call setup_tabular()
+!     ! Linearly interpolate in the bins.
+!     sfhpars%type = 5
+!     ! Loop over each bin.
+!     do i=1,ntabsfh-1
+!        ! mass formed in this bin assuming linear
+!        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
+!        ! min and max ssps to consider
+!        imin = min(max(locate(time_full, log10(sfhtab(i, 1))) - 1, 0), ntfull)
+!        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 2, 0), ntfull)
+!        ! set integration limits
+!        sfhpars%tq = sfhtab(i, 1)
+!        sfhpars%tage = sfhtab(i+1, 1)
+!        sfhpars%sf_slope = (sfhtab(i, 2) - sfhtab(i+1, 2)) / (sfhtab(i+1, 1) - sfhtab(i, 1))
+!        
+!        ! get the weights for this bin in the tabulated sfh and add to the
+!        ! total weight, after normalizing
+!        w1 = sfh_weight(sfhpars, imin, imax)
+!        m1 = sum(w1)
+!        if (m1.lt.tiny_number) m1 = 1.0
+!        total_weights = total_weights + w1 * (mass / m1)
+!     enddo
      imin = 0
      imax = ntfull
   endif
@@ -152,13 +153,13 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp,
   ! Now weight each SSP by `total_weight` and sum.
   ! This matrix multiply could probably be optimized!!!!
   do j=max(imin, 1), imax
-     if (total_weight(j).gt.tiny_number) then
-        spec_csp = spec_csp + total_weight(j) * spec_ssp(:, j)
+     if (total_weights(j).gt.tiny_number) then
+        spec_csp = spec_csp + total_weights(j) * spec_ssp(:, j)
      endif
   enddo
-  mass_csp = sum(mass_ssp * total_weight)
-  lbol_csp = sum(lbol_ssp * total_weight)
-  mdust_csp = sum(mdust_ssp * total_weight)
+  mass_csp = sum(mass_ssp * total_weights)
+  lbol_csp = sum(lbol_ssp * total_weights)
+  mdust_csp = sum(mdust_ssp * total_weights)
 
 end subroutine csp_gen
 
@@ -187,7 +188,7 @@ subroutine convert_sfhparams(pset, tage, sfh)
   !       - `t0` is the zero crossing time for a linear SFH, in lookback time.
   !       - `tb` is the burst time, in lookback time.
   !
-  use sps_vars, only: pset
+  use sps_vars, only: tiny_number, SFHPARAMS, PARAMS, SP
   implicit none
   
   type(PARAMS), intent(in) :: pset

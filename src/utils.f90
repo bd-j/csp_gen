@@ -1,21 +1,21 @@
   INTERFACE
-     SUBROUTINE SFHINFO(pset, age, mfrac, sfr)
+     SUBROUTINE SFHINFO(pset, age, mfrac, sfr, frac_linear)
        USE sps_vars
        TYPE(PARAMS), INTENT(in) :: pset
        REAL(SP), INTENT(in) :: age
-       REAL(SP), INTENT(out) :: mfrac, sfr
+       REAL(SP), INTENT(out) :: mfrac, sfr, frac_linear
      END SUBROUTINE SFHINFO
   END INTERFACE
 
   INTERFACE
-     SUBROUTINE CSP_GEN(mass_ssp, lbol_ssp, spec_ssp, pset, tage,&
-                        mass_csp, lbol_csp, spec_csp)
+     SUBROUTINE CSP_GEN(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, pset, tage,&
+                        mass_csp, lbol_csp, spec_csp, mdust_csp)
        USE sps_vars
-       REAL(SP), DIMENSION(ntfull), INTENT(in) :: mass_ssp, lbol_ssp
+       REAL(SP), DIMENSION(ntfull), INTENT(in) :: mass_ssp, lbol_ssp, mdust_ssp
        REAL(SP), DIMENSION(nspec, ntfull), INTENT(in) :: spec_ssp
        TYPE(PARAMS), intent(in) :: pset
        REAL(SP), INTENT(in)  :: tage
-       REAL(SP), INTENT(out) :: mass_csp, csp_lbol
+       REAL(SP), INTENT(out) :: mass_csp, lbol_csp, mdust_csp
        REAL(SP), INTENT(out), DIMENSION(nspec) :: spec_csp
      END SUBROUTINE CSP_GEN
   END INTERFACE
@@ -45,5 +45,5 @@
        INTEGER, INTENT(in) :: sspind
        REAL(SP), DIMENSION(2), INTENT(in) :: logt
        REAL(SP) :: intsfwght
-     END FUNCTION INTSFWEIGHT
+     END FUNCTION INTSFWGHT
   END INTERFACE

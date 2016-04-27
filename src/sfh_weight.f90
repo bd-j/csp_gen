@@ -23,23 +23,29 @@ function sfh_weight(sfh, imin, imax)
   !   array of shape `ntfull` that gives the proper weights for the SSPs to
   !   produce the SFH.
 
-  use sps_vars, only: ntfull, time_full, tiny_logt
-  use sps_utils, only: intsfwght, sfhlimit
+  use sps_vars, only: ntfull, time_full, tiny_logt, &
+                      SFHPARAMS, SP
+  use sps_utils, only: intsfwght, sfhlimit, locate
   implicit none
-
+  
   type(SFHPARAMS), intent(in) :: sfh
   integer, intent(in) :: imin, imax
 
-  real(SP), dimension(ntfull) ::sfh_weight=0., ssp_weight
-
+  real(SP), dimension(ntfull) ::sfh_weight
+  
   integer :: i, istart
-  real(SP) dimension(2) :: tlim
-  real(SP) :: dt, delta_time
+  real(SP), dimension(2) :: tlim
+  real(SP) :: dt, delta_time, log_tb
   real(SP), dimension(ntfull) :: tmp_wght=0. !left=0., right=0.
-
+  
+  sfh_weight = 0.
   ! Check if this is an SSP.  If so, do simple weights and return.
   if (sfh%type.eq.-1) then
-     sfh_weight = ssp_weight(sfh%tb)
+     log_tb = log10(sfh%tb)
+     istart = min(max(locate(time_full, log_tb), 1), ntfull-1)
+     dt = delta_time(time_full(istart), time_full(istart+1))
+     sfh_weight(istart) = delta_time(log_tb, time_full(istart+1)) / dt
+     sfh_weight(istart+1) = delta_time(time_full(istart), log_tb) / dt
      return
   endif
 
@@ -98,48 +104,13 @@ function sfh_weight(sfh, imin, imax)
 
 end function sfh_weight
 
-
-function ssp_weight(tb)
-  ! Quick function to calculate SSP weights for a single arbitrary age.
-  !
-  ! Inputs
-  ! --------
-  !
-  ! tb:
-  !   Burst time, linear years of lookback time.
-  !
-  ! Outputs
-  ! --------
-  !
-  ! ssp_weight:
-  !   Array of shape ntfull that is zeros except for the bracketing SSP ages,
-  !   where the proper SSP weights are given.
-  
-  use sps_vars, only: time_full, ntfull
-  implicit none
-
-  real(SP), intent(in) :: tb
-
-  real(SP), dimension(ntfull) :: ssp_weight=0.
-
-  integer :: imin
-  real(SP) :: log_tb, dt, delta_time
-
-  log_tb = log10(tb)
-  imin = min(max(locate(time_full, log_tb), 1, ntfull-1))
-  dt = delta_time(time_full(imin), time_full(imin+1))
-  ssp_weight(imin) = delta_time(log_tb, timefull(imin+1)) / dt
-  ssp_weight(imin+1) = delta_time(timefull(imin), log_tb) / dt
-
-end function ssp_weight
-
   
 function delta_time(logt1, logt2)
   ! Dumb function to properly calculate dt based on interpolation type.
   !
   ! Returns (logt2 - logt1), or (10**logt2 - 10**logt1)
 
-  use sps_vars, only: interpolation_type
+  use sps_vars, only: interpolation_type, SP
   implicit none
 
   real(SP), intent(in) :: logt1, logt2

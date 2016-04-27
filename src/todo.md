@@ -7,7 +7,7 @@ To Do
  6. deal with setting up sfhtab properly, check slope definition
  7. deal with multi-metallicity, especially for tabular. 
  8. ~~write the burst case into `sfh_weight` (and `convert_sfhparams`)~~
- 9. ~~check and fix `locate` usage ~~
- 10. ~~ write interfaces~~
- 11. make sure all functions properly available.
+ 9. ~~check and fix `locate` usage~~
+ 10. ~~write interfaces~~
+ 11. ~~make sure all functions properly available.~~
  12. move renormalization of `csp_gen` output to within `csp_gen`

@@ -1,4 +1,4 @@
-subroutine sfhinfo(pset, age, mfrac, sfr)
+subroutine sfhinfo(pset, age, mfrac, sfr, frac_linear)
   ! Get the SFR integrated from T=0 to T=age, normalized by the SFR integrated
   ! from T=0 to T=Tmax, where Tmax is the maximum isochrone/SSP age.
   !
@@ -26,7 +26,7 @@ subroutine sfhinfo(pset, age, mfrac, sfr)
   !   If pset%sfh=5, this gives the fraction of m_formed(age) that was formed
   !   in the linear portion.
   !
-  use sps_vars, only: time_full
+  use sps_vars, only: time_full, ntfull, PARAMS, SP
   implicit none
   type(PARAMS), intent(in) :: pset
   real(SP), intent(in) :: age
@@ -34,10 +34,11 @@ subroutine sfhinfo(pset, age, mfrac, sfr)
   real(SP), intent(out) :: mfrac, sfr, frac_linear
   
   real(SP) :: Tmax, Tprime, Tz, Ttrunc, Thi
-  real(SP) :: m, power, gammainc
+  real(SP) :: m, gammainc
   real(SP) :: mass_tau, mass_linear, mfrac_burst
   real(SP) :: total_mass_tau, total_mass_linear
-  real(SP) :: sfr, sfr_tau, sfr_linear, sfr_trunc
+  real(SP) :: sfr_tau, sfr_linear, sfr_trunc
+  integer :: power
 
   ! Defaults, used for SFH=2,3
   mfrac = 0.
@@ -55,18 +56,18 @@ subroutine sfhinfo(pset, age, mfrac, sfr)
      !   Tmax is the maximum isochrone age, and
      !   Tprime is the given `age`,
      !   both adjusted for sf_start and clipped to Ttrunc
-     Tmax = 10**(max(time_full) - 9) - pset%sf_start
+     Tmax = 10**(time_full(ntfull) - 9) - pset%sf_start
      Tprime = age - pset%sf_start
      Ttrunc = pset%sf_trunc - pset%sf_start
      ! Deal with truncation that happens after sf_start but before Tmax and/or Tprime.
      if (Ttrunc.gt.0) then
         Tmax = min(Tmax, Ttrunc)
-        Tprime = min(Tprime, Trunc)
+        Tprime = min(Tprime, Ttrunc)
      endif
 
      ! Now integrate to get mass formed by Tprime and by Tmax
-     if (pset%sfh.eq.1) power = 1.
-     if (pset%sfh.eq.4).or.(pset%sfh.eq.5) power = 2.
+     if (pset%sfh.eq.1) power = 1
+     if ((pset%sfh.eq.4).or.(pset%sfh.eq.5)) power = 2
      total_mass_tau = pset%tau * gammainc(power, Tmax/pset%tau)
      mass_tau = pset%tau * gammainc(power, Tprime/pset%tau)
      ! The SFR at Tprime (unnormalized)
@@ -94,11 +95,11 @@ subroutine sfhinfo(pset, age, mfrac, sfr)
 
   ! Add the linear portion, for Simha, SFH=5.
   ! This is the integral of sfr_trunc*(1 - m * (T - Ttrunc)) from Ttrunc to Tz
-  else if ((pset%sfh.eq.5) then
+  else if (pset%sfh.eq.5) then
      ! Need to recalculate Tprime and Tmax, since we don't want them clipped by
      ! Ttrunc anymore
      Tprime = age - pset%sf_start
-     Tmax = 10**(max(time_full) - 9) - pset%sf_start
+     Tmax = 10**(time_full(ntfull) - 9) - pset%sf_start
      m = -pset%sf_slope
      if (m.gt.0) then
         ! find time at which SFR=0, if m>0
@@ -149,6 +150,8 @@ function gammainc(power, arg)
   !
   ! Calculate incomplete gamma for a = 1 or 2
 
+  use sps_vars, only: SP
+  implicit none
   integer, intent(in) :: power
   real(SP), intent(in) :: arg
 
@@ -156,11 +159,11 @@ function gammainc(power, arg)
 
   if (power.eq.2) then
      gammainc = 1.0 - exp(-arg) - arg * exp(-arg)
-  else if (power.eq.1)
+  else if (power.eq.1) then
      gammainc = 1.0 - exp(-arg)
   else
      write(*,*) "gammainc: power must be 1 or 2"
-     exit
+     STOP
   endif
 
 end function gammainc

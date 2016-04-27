@@ -13,7 +13,7 @@ function sfhlimit(tlim, sfh)
   ! sfh:
   !    An sfhparams structure containing the relevant special lookback times.
   !
-  use sps_vars, only: tiny_logt
+  use sps_vars, only: tiny_logt, SFHPARAMS, SP
   implicit none
   
   real(SP), intent(in) :: tlim

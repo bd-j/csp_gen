@@ -6,7 +6,7 @@
 ! functions below (and making sure the sfhlimits.f90 make sense)
 ! ------------------------------------
 
-function intsfwght(sspind, logt, sfh):
+function intsfwght(sspind, logt, sfh)
   ! Wrapper on the sfhint_* routines to choose the correct interpolation type
   ! and calculate the definite integral of the weighted SFR between the given
   ! limits.
@@ -31,7 +31,7 @@ function intsfwght(sspind, logt, sfh):
   !  intsfwght:
   !    The exact definite integral between the limits specified in `logt`.
   
-  use sps_vars, only: interpolation_type
+  use sps_vars, only: interpolation_type, SFHPARAMS, SP
   implicit none
   
   integer, intent(in) :: sspind
@@ -75,8 +75,7 @@ function sfwght_log(sspind, logt, sfh)
   !  sfwght_log:
   !    The exact indefinite integral, evaluated at `logt`.  Scalar float.
   
-  use sps_vars, only: time_full, tiny_logt
-  use sps_utils, only: expi
+  use sps_vars, only: time_full, tiny_logt, SFHPARAMS, SP
   implicit none
   
   integer, intent(in) :: sspind
@@ -85,11 +84,11 @@ function sfwght_log(sspind, logt, sfh)
 
   real(SP) :: sfwght_log
 
-  real(SP) :: loge
+  real(SP) :: loge, expi
   real(SP) :: logage, tprime ! intermediate time variables
   real(SP) :: a, b, c ! dummy variables used to break up long expressions
 
-  loge = log10(exp(1))
+  loge = log10(exp(1.0))
 
   ! Zero index means use ~0 age.
   if (sspind.gt.0) then
@@ -105,7 +104,7 @@ function sfwght_log(sspind, logt, sfh)
   else if (sfh%type.eq.1) then
      ! SFR = exponential ~ exp(-T/tau)
      tprime = 10**logt / sfh%tau
-     sfwght_log = (logage - logt) * exp(tprime) + loge) * expi(tprime)
+     sfwght_log = (logage - logt) * exp(tprime) + loge * expi(tprime)
      
   else if (sfh%type.eq.4) then
      ! SFR = delayed exponential ~ T/tau exp(-T/tau)
@@ -117,7 +116,7 @@ function sfwght_log(sspind, logt, sfh)
      
   else if (sfh%type.eq.5) then
      !SFR = linear ~ (1 - sf_slope * (T - T_trunc)), T > T_trunc
-     tprime = max(0, sfh%tage - sfh%sf_trunc) !t_q
+     tprime = max(0.0, sfh%tage - sfh%sf_trunc) !t_q
      a = 1 - sfh%sf_slope * tprime
      b = a * 10**logt * (logage - logt + loge)
      c = sfh%sf_slope * (10**logt)**2 / 2 * (logage - logt + loge / 2)
@@ -154,7 +153,7 @@ function sfwght_lin(sspind, t, sfh)
   !  sfwght_lin:
   !    The indefinite integral, evaluated at `t`
 
-  use sps_vars, only: time_full, tiny_logt
+  use sps_vars, only: time_full, tiny_logt, SFHPARAMS, SP
   implicit none
   
   integer, intent(in) :: sspind 
@@ -194,8 +193,66 @@ function sfwght_lin(sspind, t, sfh)
      
   else if (sfh%type.eq.5) then
      ! SFR = linear ~ (1 - sf_slope * (T - T_trunc)), T > T_trunc
-     tprime = max(0, sfh%tage - sfh%sf_trunc) !t_q
+     tprime = max(0.0, sfh%tage - sfh%sf_trunc) !t_q
      a = 1 - sfh%sf_slope * tprime
      sfwght_lin = a * age * t + (sfh%sf_slope*age - a) * t**2 / 2 - sfh%sf_slope * t**3 / 3
 
+  endif
+
 end function sfwght_lin
+
+
+FUNCTION expi(arg)
+  ! Computes the exponential integral Ei(x) for x > 0.
+  ! Parameters:
+  !   `eps` is the relative error, or absolute error near the zero of Ei at x=0.3725;
+  !   `eul` is Euler’s constant
+  !   `maxit` is the maximum number of iterations allowed;
+  !   `fmin` is a number near the smallest representable floating-point number.
+  ! Adapted from the NR *public domain* code `ei` (http://numerical.recipes/pubdom/nr.f90.txt)
+  use sps_vars, only: SP
+  implicit none
+  
+  INTEGER, PARAMETER :: maxit=1000
+  REAL(SP) :: expi, arg
+  REAL(SP), PARAMETER :: eps=6.e-8, eul=.57721566, fmin=1.e-30
+  INTEGER :: k
+  REAL(SP) :: fact,prev,sum,term
+  
+  if (arg.le.0.) then
+     write(*,*) "expi: arg < 0"
+     STOP
+  endif
+  
+  ! Special case: avoid failure of convergence test because of underflow.
+  if (arg.lt.fmin) then   
+     expi = log(arg) + eul
+  else if (arg.le.-log(eps)) then ! Use power series.
+     sum = 0.
+     fact = 1.
+     do k=1, maxit
+        fact = fact * arg / k
+        term = fact / k
+        sum = sum + term
+        if (term.lt.(eps*sum)) continue
+     enddo
+     expi = sum + log(arg) + eul
+  else ! Use asymptotic series.
+     sum = 0. ! Start with second term.
+     term = 1.
+     do k=1, maxit
+        prev = term
+        term = term * k / arg
+        ! Since final sum is greater than one, term itself approximates the relative error.
+        if (term.lt.eps) continue
+        if (term.lt.prev) then
+           sum = sum + term ! Still converging: add new term.
+        else
+           sum = sum - prev ! Diverging: subtract previous term and exit.
+           continue
+        endif
+     enddo
+     expi = exp(arg) * (1. + sum) / arg
+  endif
+  return
+END FUNCTION expi

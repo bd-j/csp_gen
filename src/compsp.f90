@@ -7,7 +7,8 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
   use sps_vars
   use sps_utils, only: write_isochrone, add_nebular, add_dust, &
                        csp_gen, sfhinfo, &
-                       smoothspec, igm_absorb, getindx, getmags
+                       smoothspec, igm_absorb, getindx, getmags, &
+                       linterp
   implicit none
 
   INTEGER, INTENT(in) :: write_compsp,nzin
@@ -20,12 +21,12 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
 
   real(SP), DIMENSION(nspec, ntfull, nzin) :: spec_ssp
   real(SP), dimension(ntfull) :: mdust_ssp
-  real(SP) :: nage, age, mdust, mass_frac, tsfr, zred, frac_linear
-  REAL(SP) :: lbol_csp, mass_csp
+  REAL(SP) :: lbol_csp, mass_csp, mdust_csp
+  real(SP) :: age, mdust, mass_frac, tsfr, zred, frac_linear, maxtime
   REAL(SP), DIMENSION(nspec) :: csp1, csp2, spec_dusty, spec_csp
   REAL(SP), DIMENSION(nbands)  :: mags
   REAL(SP), DIMENSION(nindx)   :: indx
-  integer :: i
+  integer :: i, nage
 
   ! ------ Various checks and setup ------
 
@@ -35,6 +36,12 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      STOP
   ENDIF
   !make sure various variables are set correctly
+  IF (pset%tage.GT.tiny_number) THEN
+     maxtime = pset%tage * 1e9
+  else
+     maxtime = 10**time_full(ntfull)
+  endif
+  
   CALL COMPSP_WARNING(maxtime, pset, nzin, write_compsp)
 
   !setup output files
@@ -165,7 +172,7 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      ! ---------
      ! Store the spectrum and write....
      call save_compsp(write_compsp, ocompsp(i), log10(age)+9,&
-                      mass_csp, lbol_csp, mags, tsfr,spec_csp, mdust_csp, indx)
+                      mass_csp, lbol_csp, tsfr, mags, spec_csp, mdust_csp, indx)
 
      ! Terminate the loop if a single specific tage was requested
      if (pset%tage.gt.0) then
