@@ -42,7 +42,7 @@ function intsfwght(sspind, logt, sfh)
 
   if (interpolation_type.eq.0) then
      intsfwght = (sfwght_log(sspind, logt(2), sfh) - sfwght_log(sspind, logt(1), sfh))
-  else
+  else if (interpolation_type.eq.1) then
      intsfwght = (sfwght_lin(sspind, 10**logt(2), sfh) - sfwght_lin(sspind, 10**logt(1), sfh))
   endif
   

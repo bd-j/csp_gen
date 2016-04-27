@@ -14,7 +14,7 @@ function sfh_weight(sfh, imin, imax)
   !
   ! imax:
   !   The oldest SSP to consider.  This should usually be the next oldest SSP
-  !   compared to tage.
+  !   compared to tage (or tage - sf_start)
   !
   ! Outputs
   ! --------
@@ -38,9 +38,10 @@ function sfh_weight(sfh, imin, imax)
   real(SP) :: dt, delta_time, log_tb
   real(SP), dimension(ntfull) :: tmp_wght=0. !left=0., right=0.
   
-  sfh_weight = 0.
+
   ! Check if this is an SSP.  If so, do simple weights and return.
   if (sfh%type.eq.-1) then
+     sfh_weight = 0.
      log_tb = log10(sfh%tb)
      istart = min(max(locate(time_full, log_tb), 1), ntfull-1)
      dt = delta_time(time_full(istart), time_full(istart+1))
@@ -52,6 +53,7 @@ function sfh_weight(sfh, imin, imax)
   ! Loop over each SSP and calculate its weight in the given sfh.
   ! Note we skip i=0 for now, which is a flag for adding in the bin from t=0 to
   ! t=time_full(1).
+  tmp_wght = 0.
   istart = max(imin, 1)
   do i=istart, imax
      if (i.gt.1) then
@@ -75,7 +77,7 @@ function sfh_weight(sfh, imin, imax)
         tlim(1) = sfhlimit(time_full(i), sfh)
         tlim(2) = sfhlimit(time_full(i+1), sfh)
         ! The elements of `tlim` will be equal if there is no valid SFR in the
-        ! younger bin; only proceed if there is a non-zero sfr in the older bin.
+        ! older bin; only proceed if there is a non-zero sfr in the older bin.
         if (tlim(1).ne.tlim(2)) then
            dt = delta_time(time_full(i), time_full(i+1))
            !right(i) = intsfwght(i+1, tlim, sfh) / dt
@@ -116,9 +118,9 @@ function delta_time(logt1, logt2)
   real(SP), intent(in) :: logt1, logt2
   real(SP) :: delta_time
 
-  if (interpolation_type.eq.1) then
+  if (interpolation_type.eq.0) then
      delta_time = logt2 - logt1
-  else
+  else if (interpolation_type.eq.1) then
      delta_time = 10**logt2 - 10**logt1
   endif
 

@@ -152,6 +152,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
 
   ! Now weight each SSP by `total_weight` and sum.
   ! This matrix multiply could probably be optimized!!!!
+  spec_csp = 0.
   do j=max(imin, 1), imax
      if (total_weights(j).gt.tiny_number) then
         spec_csp = spec_csp + total_weights(j) * spec_ssp(:, j)

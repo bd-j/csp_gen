@@ -89,9 +89,14 @@ subroutine sfhinfo(pset, age, mfrac, sfr, frac_linear)
           pset%const * Tprime / Tmax + &
           pset%fburst * mfrac_burst
      ! N.B. for Tprime = tburst, sfr is infinite, but we ignore that case.
-     ! For SFR=1, total_mass_const = Tmax
-     sfr = (1. - pset%const - pset%fburst) * sfr_tau / total_mass_tau + &
-          pset%const * 1.0 / Tmax
+     ! For constant SFR=1, total_mass_const = Tmax
+     if (Tprime.eq.Ttrunc) then
+        ! We've truncated.
+        sfr = 0
+     else
+        sfr = (1. - pset%const - pset%fburst) * sfr_tau / total_mass_tau + &
+              pset%const * 1.0 / Tmax
+     endif
 
   ! Add the linear portion, for Simha, SFH=5.
   ! This is the integral of sfr_trunc*(1 - m * (T - Ttrunc)) from Ttrunc to Tz
