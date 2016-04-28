@@ -5,8 +5,8 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
   !
   !N.B. variables not otherwise defined come from sps_vars.f90
   use sps_vars
-  use sps_utils, only: write_isochrone, add_nebular, add_dust, &
-                       csp_gen, sfhinfo, setup_tabular_sfh, &
+  use sps_utils, only: write_isochrone, add_nebular, setup_tabular_sfh, &
+                       csp_gen, sfhinfo, &
                        smoothspec, igm_absorb, getindx, getmags, &
                        linterp
   implicit none
@@ -63,7 +63,7 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
   ENDIF
 
   ! ------ Prepare SSPs ------
-  ! Dust attenuation + emission, nebular emission etc.
+  ! Only doing nebular emission at the moment, dust is added in csp_gen.
   ! We should probably only do this for ages up to tage, if it is set.
   ! Also we will operate on copies of the spectra
 
@@ -79,39 +79,6 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      call add_nebular(pset, tspec_ssp(:,:,1), spec_ssp(:,:,1))
   endif
 
-  ! Add dust emission
-  !
-  ! This is a wierd way to do this. Also not strictly correct, since the age
-  ! bin older than dust_tesc will include some contribution from young star
-  ! dust due to the interpolation, and changing dust_tesc by values smaller
-  ! than the ssp age grid will have no effect on the output.
-  !
-  ! The correct way is seprately calculate csp_spectra for the t<tesc and t >
-  ! tesc portions and feed to add_dust as intended.  However, this requires
-  ! significant extra logic (basically messing around with the integration
-  ! limits in sfh_weight) for probably little gain in accuracy. However, it
-  ! would also be much faster.
-  !
-  ! We could probably also do a little better by attenuating up to the SSP
-  ! *nearest* in age to dust_tesc, instead of the oldest SSP still younger than
-  ! dust_tesc
-  !
-  ! Also do we really need to loop over *all* SSPs?
-  if ((pset%dust1.gt.tiny_number).or.(pset%dust2.gt.tiny_number)) then
-     do i=1, ntfull
-        csp1 = 0.0
-        csp2 = 0.0
-        if (time_full(i).LT.pset%dust_tesc) then
-           csp1 = spec_ssp(:,i,1)
-        else
-           csp2 = spec_ssp(:,i,1)
-        endif
-        !add dust and combine young and old csp
-        call add_dust(pset,csp1,csp2,spec_dusty,mdust)
-        spec_ssp(:,i,1) = spec_dusty
-        mdust_ssp(i) = mdust
-     enddo
-  endif
 
   ! --- Get CSP spectra -------
   
@@ -133,9 +100,9 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      ! Get the spectrum for this age.  Note this is always normalized to one
      ! solar mass formed, so we actually need to renormalize if computing all
      ! ages, which is done using info from `sfhinfo`
-     call csp_gen(mass_ssp,lbol_ssp,spec_ssp,mdust_ssp,&
-                  pset,age,&
-                  mass_csp,lbol_csp,spec_csp,mdust_csp)
+     call csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
+                  pset,age, &
+                  mass_csp, lbol_csp, spec_csp, mdust_csp)
 
      if (pset%tage.le.0) then
         call sfhinfo(pset, age, mass_frac, tsfr, frac_linear)

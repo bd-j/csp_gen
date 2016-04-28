@@ -1,4 +1,4 @@
-subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
+subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
                    pset, tage, &
                    mass_csp, lbol_csp, spec_csp, mdust_csp)
   !
@@ -28,10 +28,10 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   use sps_vars, only: ntfull, nspec, time_full, tiny_number, &
                       sfh_tab, ntabsfh, &
                       SFHPARAMS, PARAMS, SP
-  use sps_utils, only: locate, sfh_weight, sfhinfo
+  use sps_utils, only: locate, sfh_weight, sfhinfo, add_dust
   implicit none
 
-  real(SP), intent(in), dimension(ntfull) :: mass_ssp, lbol_ssp, mdust_ssp
+  real(SP), intent(in), dimension(ntfull) :: mass_ssp, lbol_ssp
   real(SP), intent(in), dimension(nspec, ntfull) :: spec_ssp
   type(PARAMS), intent(in) :: pset
   real(SP), intent(in) :: tage
@@ -173,17 +173,31 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
      imax = ntfull
   endif
 
-  ! Now weight each SSP by `total_weight` and sum.
+  ! Now weight each SSP by `total_weight` assign to young or old, and feed to
+  ! add_dust, which does the sum as well as attenuating.
   ! This matrix multiply could probably be optimized!!!!
-  spec_csp = 0.
+  !
+  csp1 = 0.
+  csp2 = 0.
+  ! Dust treatment is not strictly correct, since the age bin older than
+  ! dust_tesc will include some contribution from young star dust due to the
+  ! interpolation, and changing dust_tesc by values smaller than half the ssp
+  ! age grid resolution will have no effect on the output.
+  i_tesc = minloc(abs(time_full-pset%dust_tesc))
   do i=max(imin, 1), imax
      if (total_weights(i).gt.tiny_number) then
-        spec_csp = spec_csp + total_weights(i) * spec_ssp(:, i)
+        if (i.le.i_tesc) then
+           csp1 = csp1 + total_weights(i) * spec_ssp(:, i)
+        else
+           csp2 = csp2 + total_weights(i) * spec_ssp(:, i)
+        endif
      endif
   enddo
+
+  call add_dust(pset, csp1, csp2, spec_csp, mdust_csp)
   mass_csp = sum(mass_ssp * total_weights)
   lbol_csp = sum(lbol_ssp * total_weights)
-  mdust_csp = sum(mdust_ssp * total_weights)
+  !mdust_csp = sum(mdust_ssp * total_weights)
 
 end subroutine csp_gen
 
