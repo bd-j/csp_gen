@@ -6,7 +6,7 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
   !N.B. variables not otherwise defined come from sps_vars.f90
   use sps_vars
   use sps_utils, only: write_isochrone, add_nebular, add_dust, &
-                       csp_gen, sfhinfo, &
+                       csp_gen, sfhinfo, setup_tabular_sfh, &
                        smoothspec, igm_absorb, getindx, getmags, &
                        linterp
   implicit none
@@ -35,6 +35,9 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
           'SPS_SETUP must be run before calling COMPSP. '
      STOP
   ENDIF
+
+  call setup_tabular_sfh(pset)
+
   !make sure various variables are set correctly
   IF (pset%tage.GT.tiny_number) THEN
      maxtime = pset%tage * 1e9
@@ -86,7 +89,8 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
   ! The correct way is seprately calculate csp_spectra for the t<tesc and t >
   ! tesc portions and feed to add_dust as intended.  However, this requires
   ! significant extra logic (basically messing around with the integration
-  ! limits in sfh_weight) for probably little gain in accuracy.
+  ! limits in sfh_weight) for probably little gain in accuracy. However, it
+  ! would also be much faster.
   !
   ! We could probably also do a little better by attenuating up to the SSP
   ! *nearest* in age to dust_tesc, instead of the oldest SSP still younger than
@@ -117,6 +121,9 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
         ! A specific age was asked for, so we will only compute one spectrum at
         ! that age.
         age = pset%tage
+     else if ((pset%tage.eq.-99).and.((pset%sfh.eq.2).or.(pset%sfh.eq.3)) then
+        ! special switch to just do the last time in the tabular file
+        age = max(sfh_tab(1, :))
      else
         ! Otherwise we will calculate composite spectra for every SSP age.
         age = 10**(time_full(i)-9.)

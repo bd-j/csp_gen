@@ -15,8 +15,8 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   !   A `PARAMS` structure containing the SFH parameters
   !
   ! tage:
-  !   The age (in Gyr) at which the spectrum is desired.  Note that this can be
-  !   different than pset%tage if the latter is 0.
+  !   The age (in Gyr of forward time) at which the spectrum is desired.  Note
+  !   that this can be different than pset%tage if the latter is 0.
   !
   ! Outputs
   ! ---------
@@ -26,7 +26,8 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   !   the composite stellar population at tage, normalized to 1 M_sun *formed*.
   
   use sps_vars, only: ntfull, nspec, time_full, tiny_number, &
-                      sfhparams, params, SP
+                      sfh_tab, ntabsfh, &
+                      SFHPARAMS, PARAMS, SP
   use sps_utils, only: locate, sfh_weight, sfhinfo
   implicit none
 
@@ -38,16 +39,16 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   real(SP), intent(out) :: mass_csp, lbol_csp, mdust_csp
   real(SP), intent(out), dimension(nspec) :: spec_csp
 
-
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
-  integer :: i, j, imin=0, imax=ntfull, ntabsfh
+  integer :: i, j, imin, imax
   type(SFHPARAMS) :: sfhpars
-  real(SP) :: mass, m1, m2, frac_linear, mfrac, sfr
-  
+  real(SP) :: m1, m2, frac_linear, mfrac, sfr
+  real(SP) :: t1, t2, dt  ! for tabular calculations
+
   ! Build a structure containing useful units, numbers, and switches for the
   ! weight calculations.
   call convert_sfhparams(pset, tage, sfhpars)
-  ! Only calculate SFH weights for SSPs up to tage (plus the next one).
+  ! Only calculate SFH weights for SSPs up to tage (plus the next couple, just to be safe).
   imin = 0
   imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
   
@@ -60,9 +61,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
      sfhpars%type = -1
      ! Use tage as the burst lookback time, instead of tage-tburst.
      sfhpars%tb = sfhpars%tage
-     ! Only need weights at two SSP points.
-     imin = min(max(locate(time_full, log10(sfhpars%tage)), 0), ntfull)
-     imax = min(imin+1, ntfull)
+     ! Only need weights at two SSP points. Though in practice this doesn't
+     ! matter, as the appropriate ages are located within sfh_weight
+     imin = imax - 1
      ! These come pre-normalized to 1 Msun
      total_weights = sfh_weight(sfhpars, imin, imax)
   endif
@@ -121,31 +122,53 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   endif
 
 
-  ! Tabular.  Time units in sfhtab are assumed to be linear years of lookback time.
+  ! Tabular.  Time units in sfh_tab are assumed to be linear years of time
+  ! since big bang (forward time).  We are going to treat this as a sum of
+  ! linear SFHs, one for each bin in the table
   if (pset%sfh.eq.2.or.pset%sfh.eq.3) then
      total_weights = 0.
-!     call setup_tabular()
-!     ! Linearly interpolate in the bins.
-!     sfhpars%type = 5
-!     ! Loop over each bin.
-!     do i=1,ntabsfh-1
-!        ! mass formed in this bin assuming linear
-!        mass = (sfhtab(i,2) + sfhtab(i+1, 2)) * (sfhtab(i+1,1) - sfhtab(i, 1)) / 2
-!        ! min and max ssps to consider
-!        imin = min(max(locate(time_full, log10(sfhtab(i, 1))) - 1, 0), ntfull)
-!        imax = min(max(locate(time_full, log10(sfhtab(i+1, 1))) + 2, 0), ntfull)
-!        ! set integration limits
-!        sfhpars%tq = sfhtab(i, 1)
-!        sfhpars%tage = sfhtab(i+1, 1)
-!        sfhpars%sf_slope = (sfhtab(i, 2) - sfhtab(i+1, 2)) / (sfhtab(i+1, 1) - sfhtab(i, 1))
-!        
-!        ! get the weights for this bin in the tabulated sfh and add to the
-!        ! total weight, after normalizing
-!        w1 = sfh_weight(sfhpars, imin, imax)
-!        m1 = sum(w1)
-!        if (m1.lt.tiny_number) m1 = 1.0
-!        total_weights = total_weights + w1 * (mass / m1)
-!     enddo
+     
+     ! Assume linear SFH within the bins
+     sfhpars%type = 5
+     ! Loop over each bin in the table.
+     do j=1, ntabsfh-1
+        ! Edges of the bin in lookback time. Note that the order of sfhtab gets
+        ! flipped, since it is given in forward time and then we convert to
+        ! lookback time.  So j=0 is the `oldest` in terms of lookback time
+        t1 = tage*1e9 - sfh_tab(1, j+1)
+        t2 = tage*1e9 - sfh_tab(1, j)
+        if (t2.lt.0) then
+           ! Entire bin is in the future, skip
+           cycle
+        endif
+        
+        ! Total mass formed in this bin assuming linear. Not necessary to know.
+        !mass = (sfh_tab(j+1, 2) + sfh_tab(j, 2)) * (t2 - t1) / 2.0
+        ! Linear slope.  Positive is sfr increasing in time since big bang
+        sfhpars%sf_slope = (sfh_tab(2, j+1) - sfh_tab(2, j)) / (t2 - t1)
+        ! Set integration limits using bin edges clipped to valid times.
+        ! That is, don't include any portion of a bin that goes to negative
+        ! time, or beyond the oldest isochrone.
+        sfhpars%tq = min(max(t1, 10**tiny_logt), 10**time_full(ntfull))  !lower limit (in lookback time)
+        sfhpars%tage = min(max(t2, 10**tiny_logt), 10**time_full(ntfull)) ! upper limit
+        ! Mass that formed within these valid times
+        dt = (sfhpars%tage - sfhpars%tq)
+        m2 = (2 * sfh_tab(2, j+1) - sfhpars%sf_slope * dt) * dt
+
+        ! min and max ssps to consider, being conservative.
+        imin = min(max(locate(time_full, log10(t1)) - 1, 0), ntfull)
+        imax = min(max(locate(time_full, log10(t2)) + 2, 0), ntfull)
+
+        ! Get the weights for this bin in the tabulated sfh and add to the
+        ! total weight, after normalizing.
+        w1 = sfh_weight(sfhpars, imin, imax)
+        m1 = sum(w1)
+        if (m1.lt.tiny_number) m1 = 1.0
+        ! This is where we'd assign to specific metallicities, if taking that
+        ! into account.
+        total_weights = total_weights + w1 * (m2 / m1)
+     enddo
+     ! Reset imin and imax for the spectral sum.
      imin = 0
      imax = ntfull
   endif
@@ -153,9 +176,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, &
   ! Now weight each SSP by `total_weight` and sum.
   ! This matrix multiply could probably be optimized!!!!
   spec_csp = 0.
-  do j=max(imin, 1), imax
-     if (total_weights(j).gt.tiny_number) then
-        spec_csp = spec_csp + total_weights(j) * spec_ssp(:, j)
+  do i=max(imin, 1), imax
+     if (total_weights(i).gt.tiny_number) then
+        spec_csp = spec_csp + total_weights(i) * spec_ssp(:, i)
      endif
   enddo
   mass_csp = sum(mass_ssp * total_weights)

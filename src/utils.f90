@@ -1,11 +1,3 @@
-  INTERFACE
-     SUBROUTINE SFHINFO(pset, age, mfrac, sfr, frac_linear)
-       USE sps_vars
-       TYPE(PARAMS), INTENT(in) :: pset
-       REAL(SP), INTENT(in) :: age
-       REAL(SP), INTENT(out) :: mfrac, sfr, frac_linear
-     END SUBROUTINE SFHINFO
-  END INTERFACE
 
   INTERFACE
      SUBROUTINE CSP_GEN(mass_ssp, lbol_ssp, spec_ssp, mdust_ssp, pset, tage,&
@@ -18,6 +10,22 @@
        REAL(SP), INTENT(out) :: mass_csp, lbol_csp, mdust_csp
        REAL(SP), INTENT(out), DIMENSION(nspec) :: spec_csp
      END SUBROUTINE CSP_GEN
+  END INTERFACE
+
+  INTERFACE
+     SUBROUTINE SETUP_SFH_TABULAR(pset)
+       USE sps_vars
+       TYPE(PARAMS), intent(in) :: pset
+     END SUBROUTINE SETUP_SFH_TABULAR
+  END INTERFACE
+
+  INTERFACE
+     SUBROUTINE SFHINFO(pset, age, mfrac, sfr, frac_linear)
+       USE sps_vars
+       TYPE(PARAMS), INTENT(in) :: pset
+       REAL(SP), INTENT(in) :: age
+       REAL(SP), INTENT(out) :: mfrac, sfr, frac_linear
+     END SUBROUTINE SFHINFO
   END INTERFACE
 
   INTERFACE
