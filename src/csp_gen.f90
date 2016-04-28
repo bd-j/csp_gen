@@ -25,7 +25,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
   !   The (surviving) stellar masses, bolometric luminosity, and spectrum of
   !   the composite stellar population at tage, normalized to 1 M_sun *formed*.
   
-  use sps_vars, only: ntfull, nspec, time_full, tiny_number, &
+  use sps_vars, only: ntfull, nspec, time_full, tiny_number, tiny_logt, &
                       sfh_tab, ntabsfh, &
                       SFHPARAMS, PARAMS, SP
   use sps_utils, only: locate, sfh_weight, sfhinfo, add_dust
@@ -39,8 +39,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
   real(SP), intent(out) :: mass_csp, lbol_csp, mdust_csp
   real(SP), intent(out), dimension(nspec) :: spec_csp
 
+  real(SP), dimension(nspec) :: csp1, csp2 !for add dust
   real(SP), dimension(ntfull) :: total_weights=0., w1=0., w2=0.
-  integer :: i, j, imin, imax
+  integer :: i, j, imin, imax, i_tesc
   type(SFHPARAMS) :: sfhpars
   real(SP) :: m1, m2, frac_linear, mfrac, sfr
   real(SP) :: t1, t2, dt  ! for tabular calculations
@@ -181,9 +182,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
   csp2 = 0.
   ! Dust treatment is not strictly correct, since the age bin older than
   ! dust_tesc will include some contribution from young star dust due to the
-  ! interpolation, and changing dust_tesc by values smaller than half the ssp
+  ! interpolation, and changing dust_tesc by values smaller than the ssp
   ! age grid resolution will have no effect on the output.
-  i_tesc = minloc(abs(time_full-pset%dust_tesc))
+  i_tesc = locate(time_full, pset%dust_tesc)
   do i=max(imin, 1), imax
      if (total_weights(i).gt.tiny_number) then
         if (i.le.i_tesc) then
@@ -194,7 +195,13 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      endif
   enddo
 
-  call add_dust(pset, csp1, csp2, spec_csp, mdust_csp)
+  if ((pset%dust1.gt.tiny_number).or.(pset%dust2.gt.tiny_number)) then
+     call add_dust(pset, csp1, csp2, spec_csp, mdust_csp)
+  else
+     spec_csp = csp1 + csp2
+     mdust_csp = 0.0
+  endif
+
   mass_csp = sum(mass_ssp * total_weights)
   lbol_csp = sum(lbol_ssp * total_weights)
   !mdust_csp = sum(mdust_ssp * total_weights)

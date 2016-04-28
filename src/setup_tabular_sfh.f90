@@ -9,12 +9,13 @@
 ! data require dense sampling.
 
 
-subroutine setup_tabular_sfh(pset)
+subroutine setup_tabular_sfh(pset, nzin)
 
-  use sps_vars, only: sfh_tab, ntabsfh, &
-                      PARAMS
+  use sps_vars, only: sfh_tab, ntabsfh, ntabmax, nz, &
+                      tiny_number, PARAMS, SPS_HOME
   implicit none
   type(PARAMS), intent(in) :: pset
+  integer, intent(in) :: nzin
   integer :: stat, n
   
   IF (pset%sfh.EQ.2) THEN

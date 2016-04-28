@@ -36,7 +36,7 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      STOP
   ENDIF
 
-  call setup_tabular_sfh(pset)
+  call setup_tabular_sfh(pset, nzin)
 
   !make sure various variables are set correctly
   IF (pset%tage.GT.tiny_number) THEN
@@ -88,9 +88,9 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
         ! A specific age was asked for, so we will only compute one spectrum at
         ! that age.
         age = pset%tage
-     else if ((pset%tage.eq.-99).and.((pset%sfh.eq.2).or.(pset%sfh.eq.3)) then
+     else if ((pset%tage.eq.-99).and.((pset%sfh.eq.2).or.(pset%sfh.eq.3))) then
         ! special switch to just do the last time in the tabular file
-        age = max(sfh_tab(1, :))
+        age = maxval(sfh_tab(1, :))
      else
         ! Otherwise we will calculate composite spectra for every SSP age.
         age = 10**(time_full(i)-9.)
