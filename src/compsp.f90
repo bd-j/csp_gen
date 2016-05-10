@@ -36,6 +36,12 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      STOP
   ENDIF
 
+  IF (nzin.GT.1) THEN
+     WRITE(*,*) 'COMPSP ERROR: '//&
+          'nzin > 1 no longer supported. '
+     STOP
+  ENDIF
+
   call setup_tabular_sfh(pset, nzin)
 
   !make sure various variables are set correctly
@@ -107,11 +113,11 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      if (pset%tage.le.0) then
         call sfhinfo(pset, age, mass_frac, tsfr, frac_linear)
         mass_csp = mass_csp * mass_frac
-        lbol_csp = lbol_csp * mass_frac
+        lbol_csp = log10(10**lbol_csp * mass_frac)
         spec_csp = spec_csp * mass_frac
         mdust_csp = mdust_csp * mass_frac
      else
-        tsfr = 1.0
+        tsfr = 0.0
         mass_frac = 1.0
      endif     
      
@@ -194,7 +200,7 @@ SUBROUTINE COMPSP_WARNING(maxtime,pset,nzin,write_compsp)
   IF (pset%tburst*1E9.GT.maxtime.AND.pset%fburst.GT.tiny_number.AND.&
        (pset%sfh.EQ.1.OR.pset%sfh.EQ.4)) THEN
      WRITE(*,*) 'COMPSP WARNING: burst time > age of system....'//&
-          ' the burst component will NOT be added'
+          ' the burst component will NOT be added.'
   ENDIF
 
   IF (pset%sf_start.LT.0.0) THEN
@@ -207,6 +213,12 @@ SUBROUTINE COMPSP_WARNING(maxtime,pset,nzin,write_compsp)
      STOP
   ENDIF
 
+  IF (pset%sf_trunc.LT.pset%sf_start) THEN
+     WRITE(*,*) 'COMPSP WARNING: sf_trunc<sf_start....'//&
+          ' sf_trunc will be ignored.'
+  ENDIF
+
+  
   !set limits on the parameters tau and const
   IF (pset%sfh.EQ.1.OR.pset%sfh.EQ.4) THEN
      IF (pset%tau.LE.0.1.AND.pset%tau.GE.0.0) THEN
@@ -221,6 +233,11 @@ SUBROUTINE COMPSP_WARNING(maxtime,pset,nzin,write_compsp)
 
      IF (pset%const.GT.1.0.OR.pset%const.LT.0.0) THEN
         WRITE(*,*) 'COMPSP ERROR: const out of bounds:',pset%const
+        STOP
+     ENDIF
+
+     IF ((pset%const + pset%fburst).GT.1.0) THEN
+        WRITE(*,*) 'COMPSP ERROR: const + fburst > 1', pset%const + pset%fburst
         STOP
      ENDIF
   ENDIF
