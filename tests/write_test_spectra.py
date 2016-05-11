@@ -15,7 +15,8 @@ sps = fsps.StellarPopulation(zcontinuous=1)
 
 # want to test tau, tage, sf_trunc, sf_start, const, and fburst
 default_sfh = {'tage': 10.0, 'tau': 3.0, 'const': 0.0, 'fburst': 0.0,
-               'sf_start': 0.0, 'sf_trunc':0.0, 'sf_slope': 0.0, 'tburst':4.0}
+               'sf_start': 0.0, 'sf_trunc':0.0, 'sf_slope': 0.0, 'tburst':4.0,
+               'add_neb_emission': False, 'dust2': 0.0}
 
 
 def test_ssps(**pars):
@@ -43,13 +44,12 @@ def test_params_product(variations, sps=sps, **pars):
     ty = [type(np.array(variations[n])[0]) for n in parnames]
     parstruct = np.array(vpars, dtype=np.dtype(zip(parnames, ty)))
 
-    # output blob
-    all_blob = []
-    spec = np.zeros([len(parstruct), len(sps.wavelengths)])
-    mass = np.zeros(len(parstruct))
+    # output blobs
+    all_blob, spec, mass, sfr, goodpars = [], [], [], [], []
     
     # loop over parameter combinations
-    for i,p in enumerate(parstruct):
+    for i,thisp in enumerate(vpars):
+        p = dict(zip(parnames, thisp))
         # Set any global parameters
         for k, v in pars.iteritems():
             sps.params[k] = v
@@ -57,33 +57,40 @@ def test_params_product(variations, sps=sps, **pars):
         for n in parnames:
             sps.params[n] = p[n]
         # only proceed if we won't get an error for the params
-        good = ((sps.params['tage'] - sps.params['sf_start'] > 0.1) &
-                ((sps.params['fburst'] == 0) | (sps.params['const'] == 0))
+        good = (
+                # dies otherwise
+                ((sps.params['tage'] - sps.params['sf_start'] > 0.1) | (sps.params['tage'] == 0)) &
+                # both nonzero behaves differently by design
+                ((sps.params['fburst'] == 0) | (sps.params['const'] == 0)) &
+                # behaves differently by design
+                ((sps.params['sf_start'] < sps.params['sf_trunc']))
                 )
         if good:
+            
             t = time.time()
             w, s = sps.get_spectrum(tage=sps.params['tage'], peraa=False)
             dt = time.time() - t
-            m = sps.stellar_mass
-        else:
-            s = np.zeros(len(sps.wavelengths))
-            m = 0
-            dt = 0
-        spec[i,:] = s
-        mass[i] = m
-        spars = spardict(sps)
-        all_blob.append([spars])
-    return [parstruct, spec, mass, all_blob]
+            mass.append(sps.stellar_mass)
+            sfr.append(sps.sfr)
+            spec.append(s)
+            spars = spardict(sps)
+            all_blob.append([spars])
+            goodpars.append(thisp)
+
+    print(len(goodpars))
+    parstruct = np.array(goodpars, dtype=np.dtype(zip(parnames, ty)))
+    return [parstruct, np.array(spec), np.array(mass), np.array(sfr), all_blob]
 
             
-def write_spectra(variations, sps=sps, sfh=1):
+def write_spectra(variations, sps=sps, sfh=1, root='pickles/'):
     pars = default_sfh.copy()
     pars['sfh'] = sfh
-    filename = 'pickles/sfh{}_{}.pkl'.format(sfh, fsps_branch)
+    filename = '{}sfh{}_{}.pkl'.format(root, sfh, fsps_branch)
     blob = test_params_product(variations, **pars)
     blob.append([pars])
     with open(filename, 'wb') as f:
         pickle.dump(blob, f)
+
 
 if __name__ == "__main__":
 
@@ -96,6 +103,30 @@ if __name__ == "__main__":
 
     #sys.exit()
 
+
+    #tage = 0
+    variations = {'tage': [0.0],
+                  'tau': 10**np.linspace(-1, 2, 4),
+                  'const': [0.0, 0.5],
+                  'fburst': [0, 0.5],
+                  'sf_start': [0, 5],
+                  'sf_trunc': np.linspace(0, 10, 4)
+                  }
+    write_spectra(variations, sfh=4, root='pickles/tage0_')
+
+    variations = {'tage': [0.0],
+                  'tau': 10**np.linspace(-1, 2, 4),
+                  'sf_start': [0, 5],
+                  'sf_trunc': np.linspace(0, 10, 4),
+                  'sf_slope': [-0.5, 0.0, 0.5]
+                  }
+    t = time.time()
+    write_spectra(variations, sfh=5, root='pickles/tage0_')
+    dt = time.time() - t
+    print(dt)
+    
+    sys.exit()
+    
     # sfh = 1
     variations = {'tage': np.linspace(0.2, 10, 4),
                   'tau': 10**np.linspace(-1, 2, 4),
@@ -126,10 +157,11 @@ if __name__ == "__main__":
 
     # sfh = 5
     variations = {'tage': np.linspace(0.2, 10, 10),
-                  'tau': np.linspace(0.1, 100, 3),
+                  'tau': 10**np.linspace(-1, 2, 4),
                   'sf_start': default_sfh['tage'] * np.linspace(0.0, 0.9, 4),
-                  'sf_trunc': np.linspace(0, 10, 5),
-                  'sf_slope': [-0.5, 0., 0.5]
+                  'sf_trunc': np.linspace(0, 10, 6),
+                  'sf_slope': [-0.5, 0., 0.5],
+                  'add_neb_emission': [0, 1],
                   }
 
     write_spectra(variations, sfh=5)
