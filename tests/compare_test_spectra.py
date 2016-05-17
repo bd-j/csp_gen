@@ -1,22 +1,27 @@
 import pickle, sys
 import numpy as np
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as pl
 import fsps
 sps = fsps.StellarPopulation(zcontinuous=1)
 
-sfh = 5
+sfh = 4
 root = 'pickles/'
 
 def main(sfh=1, root='pickles/'):
-    pars, specs, masses, sfrs = read_pickles(sfh=sfh, root=root)    
+    pars, specs, masses, sfrs, ages = read_pickles(sfh=sfh, root=root)    
     #missing = [np.all(branch_spec == 0., axis=-1) for branch_spec in spec]
     #either_missing = missing[0] | missing[1]
     #both_missing = missing[0] & missing[1]
     return plot_ratios(pars, specs, masses, sfh=sfh)
     
+
+#def main(sfh=1, root='pickles/tage0_'):
+#    pars, specs, masses, sfrs, ages = read_pickles(sfh=sfh, root=root)    
+    
         
 def read_pickles(sfh, branches=['localvars', 'new_compsp'], root='pickles/'):
-    spec, parstruct, masses, sfrs = [], [], [], []
+    spec, parstruct, masses, sfrs, ages = [], [], [], [], []
     print(branches)
     for branch in branches:
         print(branch)
@@ -25,18 +30,44 @@ def read_pickles(sfh, branches=['localvars', 'new_compsp'], root='pickles/'):
             blob = pickle.load(f)
         print(len(blob))
         try:
-            branch_pars, branch_spec, m, sf, pardicts, default_sfh = blob
+            branch_pars, branch_spec, m, sf, pardicts, default_sfh, age = blob
         except(ValueError):
             branch_pars, branch_spec, m, pardicts, default_sfh = blob
             sf = None
+            age = None
         spec.append(branch_spec)
         parstruct.append(branch_pars)
         masses.append(m)
         sfrs.append(sf)
-    return parstruct, spec, masses, sfrs
+        ages.append(age)
+    return parstruct, spec, masses, sfrs, ages
 
 
-def plot_sfh():
+def plot_sfh(pars, specs, masses, sfrs, ages, sps=sps):
+
+
+    # sfrs
+    #plot(ages[0], sfrs[0][i,:], '-o', label='old')
+    #plot(ages[1], sfrs[1][i,:], '-o', label='new')
+    integrated_sfr = [np.trapz(sfrs[i], 10**ages[i], axis=1) for i in range(2)]
+    sratio = integrated_sfr[1] / integrated_sfr[0]
+
+    # masses
+    #plot(ages[0], masses[0][i,:], '-o', label='old')
+    #plot(ages[1], masses[1][i,:], '-o', label='new')
+    m1 = interp1d(ages[0], masses[0], axis=1)(ages[1])
+    mratio =  masses[1] / m1
+    zero = (m1 == 0.0) | (masses[1] == 0.0)
+
+    # Mass to light ratios
+    from sedpy import observate
+    filters = [observate.Filter('bessell_V')]
+    w = sps.wavelengths
+    lv = [observate.getSED(w, s / w**2, filterlist=filters) for s in specs]
+
+    log_m2l = [np.log10(mass) + lum/2.5 for mass, lum in zip(masses, lv)]
+    log_m2l1 = interp1d(ages[0], log_m2l[0], axis=1)(ages[1])
+    
     pass
 
 

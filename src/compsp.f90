@@ -88,14 +88,16 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
 
   ! --- Get CSP spectra -------
   
-  ! loop over output ages
+  ! Loop over output ages.
   do i=1,ntfull
+     ! ------
+     ! First decide what mode we are in.
      if (pset%tage.gt.0) then
         ! A specific age was asked for, so we will only compute one spectrum at
         ! that age.
         age = pset%tage
      else if ((pset%tage.eq.-99).and.((pset%sfh.eq.2).or.(pset%sfh.eq.3))) then
-        ! special switch to just do the last time in the tabular file
+        ! Special switch to just do the last time in the tabular file
         age = maxval(sfh_tab(1, :))
      else
         ! Otherwise we will calculate composite spectra for every SSP age.
@@ -107,7 +109,7 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      ! solar mass formed, so we actually need to renormalize if computing all
      ! ages, which is done using info from `sfhinfo`
      call csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
-                  pset,age, &
+                  pset, age, &
                   mass_csp, lbol_csp, spec_csp, mdust_csp)
 
      if (pset%tage.le.0) then
@@ -119,8 +121,8 @@ SUBROUTINE COMPSP(write_compsp, nzin, outfile,&
      else
         tsfr = 0.0
         mass_frac = 1.0
-     endif     
-     
+     endif
+
      ! -------
      ! Now do a bunch of stuff with the spectrum
      ! Smooth the spectrum

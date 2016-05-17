@@ -46,6 +46,8 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
   real(SP) :: m1, m2, frac_linear, mfrac, sfr, fburst
   real(SP) :: t1, t2, dt  ! for tabular calculations
 
+  ! ------- Setup ----------
+
   ! Build a structure containing useful units, numbers, and switches for the
   ! weight calculations. The units of the parameters in the `sfhparams`
   ! structure are years of lookback time.
@@ -54,10 +56,9 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
   ! (plus the next couple, to bracket and be safe).
   imin = 0
   imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
-  
+
   ! ----- Get SFH weights -----
 
-  
   ! SSP.
   if (pset%sfh.eq.0) then
      ! Make sure to use SSP weighting scheme
@@ -94,7 +95,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      w1 = sfh_weight(sfhpars, imin, imax)
      m1 = sum(w1(1:imax))
      ! Burst.  These weights come pre-normalized to 1 Msun.
-     ! If burst happens after age of system, we kill it entirely.
+     ! If burst happens after age of system then we kill it entirely.
      sfhpars%type = -1
      if (sfhpars%tb.lt.0) then
         w2 = 0.
@@ -110,7 +111,6 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      total_weights = (1 - pset%const - fburst) * total_weights + &
                       pset%const * (w1 / m1) + &
                       fburst * w2
-     !write(*,*) sfhpars%tage, sfhpars%tb, fburst, maxloc(w2), maxval(w2), sum(w2), sum(total_weights)
   endif
 
   
@@ -119,12 +119,15 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      imin = 0
      ! Delayed-tau model portion, could set imin here to be just before
      ! sfhpars%tq, for small speed increase.
+     ! imin = min(max(locate(time_full, log10(sfhpars%tq)), 0), ntfull-1)
      sfhpars%type = 4
      w1 = sfh_weight(sfhpars, imin, imax)
      m1 = sum(w1(1:imax))
      ! Linear portion.  Need to set `use_simha_limits` flag to get correct
      ! integration limits. Could set imax here to be just after sfhpars%tq,
      ! but with imin=0, for small speed increase.
+     ! imax = imin + 1
+     ! imin = 0
      sfhpars%type = 5
      sfhpars%use_simha_limits = 1
      w2 = sfh_weight(sfhpars, imin, imax)
@@ -137,6 +140,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      ! need to get the fraction of the mass formed in the linear portion
      call sfhinfo(pset, tage, mfrac, sfr, frac_linear)
      total_weights = (w1 / m1) * (1 - frac_linear) + frac_linear * (w2 / m2)
+     ! imax = min(max(locate(time_full, log10(sfhpars%tage)) + 2, 1), ntfull)
   endif
 
 
@@ -160,17 +164,17 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
            cycle
         endif
         
-        ! Linear slope.  Positive is sfr decreasing in time since big bang
-        sfhpars%sf_slope = -(sfh_tab(2, j+1) - sfh_tab(2, j)) / (t2 - t1)
+        ! Linear slope.  Positive should be sfr *decreasing* in time since big bang.
+        sfhpars%sf_slope = -(sfh_tab(2, j+1) - sfh_tab(2, j)) / (t2 - t1) / sfh_tab(2, j+1)
         ! Set integration limits using bin edges clipped to valid times.
         ! That is, don't include any portion of a bin that goes to negative
         ! time, or beyond the oldest isochrone.
         sfhpars%tq = min(max(t1, 10**tiny_logt), 10**time_full(ntfull))  ! lower limit (in lookback time)
         sfhpars%tage = min(max(t2, 10**tiny_logt), 10**time_full(ntfull)) ! upper limit
-        ! Mass that formed within these valid times
+        sfhpars%sf_trunc = sfhpars%tage - sfhpars%tq
+        ! Mass that formed within these valid times.
         dt = (sfhpars%tage - sfhpars%tq)
-        m2 = (2 * sfh_tab(2, j+1) - sfhpars%sf_slope * dt) * dt
-
+        m2 = sfh_tab(2, j+1) * (1 - sfhpars%sf_slope/2. * (sfhpars%tage + sfhpars%tq - 2*t1)) * dt
         ! min and max ssps to consider, being conservative.
         imin = min(max(locate(time_full, log10(t1)) - 1, 0), ntfull)
         imax = min(max(locate(time_full, log10(t2)) + 2, 0), ntfull)
@@ -189,7 +193,7 @@ subroutine csp_gen(mass_ssp, lbol_ssp, spec_ssp, &
      imax = ntfull
   endif
 
-
+  ! ----- Combine SSPs with dust -------
   ! Now weight each SSP by `total_weight`, assign to young or old, and feed to
   ! add_dust, which does the final sum as well as attenuating.
   ! This matrix multiply could probably be optimized!!!!

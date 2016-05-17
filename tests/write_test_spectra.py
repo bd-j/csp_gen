@@ -62,8 +62,8 @@ def test_params_product(variations, sps=sps, **pars):
                 ((sps.params['tage'] - sps.params['sf_start'] > 0.1) | (sps.params['tage'] == 0)) &
                 # both nonzero behaves differently by design
                 ((sps.params['fburst'] == 0) | (sps.params['const'] == 0)) &
-                # behaves differently by design
-                ((sps.params['sf_start'] < sps.params['sf_trunc']))
+                # sf_start > sf_trunc behaves differently by design
+                ((sps.params['sf_start'] <= sps.params['sf_trunc']))
                 )
         if good:
             
@@ -83,11 +83,12 @@ def test_params_product(variations, sps=sps, **pars):
 
             
 def write_spectra(variations, sps=sps, sfh=1, root='pickles/'):
+    ages = sps.ssp_ages
     pars = default_sfh.copy()
     pars['sfh'] = sfh
     filename = '{}sfh{}_{}.pkl'.format(root, sfh, fsps_branch)
     blob = test_params_product(variations, **pars)
-    blob.append([pars])
+    blob.extend([pars, ages])
     with open(filename, 'wb') as f:
         pickle.dump(blob, f)
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
                   'tau': 10**np.linspace(-1, 2, 4),
                   'const': [0.0, 0.5],
                   'fburst': [0, 0.5],
-                  'sf_start': [0, 5],
+                  'sf_start': [0.0, 5],
                   'sf_trunc': np.linspace(0, 10, 4)
                   }
     write_spectra(variations, sfh=4, root='pickles/tage0_')
@@ -138,9 +139,7 @@ if __name__ == "__main__":
                   'sf_trunc': np.linspace(0, 10, 3)
                   }
 
-    t = time.time()
     write_spectra(variations, sfh=1)
-    dt = time.time() - t
     
     # sfh = 4
     variations = {'tage': np.linspace(0.2, 10, 4),
@@ -164,4 +163,6 @@ if __name__ == "__main__":
                   'add_neb_emission': [0, 1],
                   }
 
+    t = time.time()
     write_spectra(variations, sfh=5)
+    dt = time.time() - t
