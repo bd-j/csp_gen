@@ -5,22 +5,22 @@ import matplotlib.pyplot as pl
 import fsps
 sps = fsps.StellarPopulation(zcontinuous=1)
 
-sfh = 4
+sfh = 5
 root = 'pickles/'
 
-def main(sfh=1, root='pickles/'):
-    pars, specs, masses, sfrs, ages = read_pickles(sfh=sfh, root=root)    
+def main(sfh=1, root='pickles/', **kwargs):
+    pars, specs, masses, sfrs, ages = read_pickles(sfh=sfh, root=root, **kwargs)    
     #missing = [np.all(branch_spec == 0., axis=-1) for branch_spec in spec]
     #either_missing = missing[0] | missing[1]
     #both_missing = missing[0] & missing[1]
-    return plot_ratios(pars, specs, masses, sfh=sfh)
+    return plot_ratios(pars, specs, masses, sfh=sfh, **kwargs)
     
 
 #def main(sfh=1, root='pickles/tage0_'):
 #    pars, specs, masses, sfrs, ages = read_pickles(sfh=sfh, root=root)    
     
         
-def read_pickles(sfh, branches=['localvars', 'new_compsp'], root='pickles/'):
+def read_pickles(sfh, branches=['localvars', 'new_compsp'], root='pickles/', **extras):
     spec, parstruct, masses, sfrs, ages = [], [], [], [], []
     print(branches)
     for branch in branches:
@@ -47,14 +47,14 @@ def plot_sfh(pars, specs, masses, sfrs, ages, sps=sps):
 
 
     # sfrs
-    #plot(ages[0], sfrs[0][i,:], '-o', label='old')
-    #plot(ages[1], sfrs[1][i,:], '-o', label='new')
+    plot(ages[0], sfrs[0][i,:], '-o', label='old')
+    plot(ages[1], sfrs[1][i,:], '-o', label='new')
     integrated_sfr = [np.trapz(sfrs[i], 10**ages[i], axis=1) for i in range(2)]
     sratio = integrated_sfr[1] / integrated_sfr[0]
 
     # masses
-    #plot(ages[0], masses[0][i,:], '-o', label='old')
-    #plot(ages[1], masses[1][i,:], '-o', label='new')
+    plot(ages[0], masses[0][i,:], '-o', label='old')
+    plot(ages[1], masses[1][i,:], '-o', label='new')
     m1 = interp1d(ages[0], masses[0], axis=1)(ages[1])
     mratio =  masses[1] / m1
     zero = (m1 == 0.0) | (masses[1] == 0.0)
@@ -72,7 +72,8 @@ def plot_sfh(pars, specs, masses, sfrs, ages, sps=sps):
 
 
 def plot_ratios(pars, specs, masses, sfh=4, sps=sps,
-                ishow=[100, 500, 700], wlo=1e3, whi=2e4):
+                ishow=[100, 500, 700], wlo=1e3, whi=2e4,
+                branches=['old', 'new'], **extras):
 
     wave = sps.wavelengths
     imin, imax = np.argmin(np.abs(wave - wlo)), np.argmin(np.abs(wave - whi)) 
@@ -94,7 +95,7 @@ def plot_ratios(pars, specs, masses, sfh=4, sps=sps,
         ax.plot(np.exp(maxratio[inds]), 'o', alpha = 0.5, label='max, ${}<\lambda<{}$'.format(wlo, whi))
         ax.plot(mratio[inds], 'o', alpha = 0.5, label='mass')
         ax.set_xlabel('model #')
-        ax.set_ylabel('flux(old)/flux(new)')
+        ax.set_ylabel('flux({})/flux({})'.format(*branches))
         ax.set_title(sel)
         #ax.set_ylim(0.7, 1.3)
         ax.axhline(1.0, linestyle=':', color='k')
@@ -154,12 +155,15 @@ def get_selections(par, sfh):
                 'sf_slope=0': (lesssimple, 1),
                 #'neb': (nebsimple, 2),
                 'sf_slope = 0.5': (hislope, 2),
-                'sf_slope < -0.5': (loslope, 3),
+                'sf_slope = -0.5': (loslope, 3),
                 }
 
     
 if __name__ == "__main__":
-    fig, ax, sel, maxratio = main(sfh, root)
+    if len(sys.argv) > 1:
+        sfh = int(sys.argv[1])
+    branches = ['new_compsp', 'master']
+    fig, ax, sel, maxratio = main(sfh, root, branches=branches)
 
     try:
         par = pars[0]

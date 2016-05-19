@@ -126,7 +126,7 @@ if __name__ == "__main__":
     dt = time.time() - t
     print(dt)
     
-    sys.exit()
+    #sys.exit()
     
     # sfh = 1
     variations = {'tage': np.linspace(0.2, 10, 4),
